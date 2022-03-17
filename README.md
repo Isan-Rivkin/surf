@@ -12,6 +12,7 @@ vs -q token
 
 * LDAP 
 * AWS 
-* Kubernetes 
+* Token 
+* Approle 
 
 
