@@ -1,4 +1,4 @@
-# Vault Search 
+# WIP: Vault Search 
 
 Search secrets across Hashicorp Vault 
 
@@ -7,4 +7,11 @@ Search secrets across Hashicorp Vault
 ```bash
 vs -q token 
 ```
+
+# Auth Methods
+
+* LDAP 
+* AWS 
+* Kubernetes 
+
 
