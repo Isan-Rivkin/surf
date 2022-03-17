@@ -5,7 +5,7 @@ Search secrets across Hashicorp Vault
 # Usage 
 
 ```bash
-vs -q token 
+$vs -q token 
 ```
 
 # Auth Methods
