@@ -10,9 +10,9 @@ vs -q token
 
 # Auth Methods
 
-* LDAP 
-* AWS 
-* Token 
-* Approle 
+- [x] LDAP 
+- [x] Approle 
+- [ ] AWS 
+- [ ] Token 
 
 
