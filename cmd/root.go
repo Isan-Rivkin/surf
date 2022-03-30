@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2022 Isan Rivkin isanrivkin@gmail.com
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,30 +18,68 @@ package cmd
 import (
 	"fmt"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	cfgFile      string
+	verboseLevel *int
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "vault-searcher",
 	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Long:  getEnvVarConfig(),
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		setLogLevel()
+	},
+	// Run: func(cmd *cobra.Command, args []string) {
+	// },
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+func getEnvOrOverride(flagVal *string, envName string) *string {
+	v := viper.GetString(envName)
+	if v != "" && *flagVal == "" {
+		return &v
+	}
+	return flagVal
+}
+
+func getEnvVarConfig() string {
+	m := `
+	Environment Variables Available: 
+
+`
+	for _, e := range confEnvVars {
+		m += fmt.Sprintf("\t%s_%s \n\t%s\n\n", EnvVarPrefix, e.Value, e.Description)
+
+	}
+	return m
+}
+
+func setLogLevel() {
+	lvl := getLogLevelFromVerbosity()
+	log.SetLevel(lvl)
+	if lvl >= log.TraceLevel {
+		log.SetReportCaller(true)
+	}
+}
+func getLogLevelFromVerbosity() log.Level {
+	switch *verboseLevel {
+	case 0:
+		return log.InfoLevel
+	case 1:
+		return log.DebugLevel
+	default:
+		return log.TraceLevel
+	}
+}
+
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 }
@@ -53,11 +91,25 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vault-searcher.yaml)")
+	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vault-searcher.yaml)")
+	verboseLevel = rootCmd.PersistentFlags().CountP("verbose", "v", "verbosity level -vvv")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+const EnvVarPrefix string = "SEARCHER"
+
+var confEnvVars = []struct {
+	Value       string
+	Description string
+}{
+	{
+		Value:       "DEFAULT_MOUNT",
+		Description: "Root mount to start the search from in Vault",
+	},
+	{
+		Value:       "DEFAULT_PREFIX",
+		Description: "Prefix to start the search from in Vault appended to the default mount",
+	},
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -76,6 +128,9 @@ func initConfig() {
 		viper.SetConfigName(".vault-searcher")
 	}
 
+	viper.SetEnvPrefix(EnvVarPrefix)
+	viper.BindEnv("DEFAULT_PREFIX")
+	viper.BindEnv("DEFAULT_MOUNT")
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.

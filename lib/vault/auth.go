@@ -12,27 +12,46 @@ import (
 
 type Authenticator interface {
 	Auth() (*vaultApi.Client, error)
+	GetVaultAddr() string
 }
 
-func LdapLogin(username, password, vaultAddr string) {
+type LdapAuthenticator struct {
+	username, password, vaultAddr string
+}
+
+func NewLdapAuth(username, password, vaultAddr string) Authenticator {
+	return &LdapAuthenticator{
+		username:  username,
+		password:  password,
+		vaultAddr: vaultAddr,
+	}
+}
+
+func (la *LdapAuthenticator) GetVaultAddr() string {
+	return la.vaultAddr
+}
+
+func (la *LdapAuthenticator) Auth() (*vaultApi.Client, error) {
 	os.Setenv("VAULT_SKIP_VERIFY", "true")
 	httpClient := &http.Client{}
 
-	clientConf := &vaultApi.Config{Address: vaultAddr, HttpClient: httpClient}
+	clientConf := &vaultApi.Config{Address: la.vaultAddr, HttpClient: httpClient}
 	c, _ := vaultApi.NewClient(clientConf)
 
 	data := map[string]any{
-		"password": password,
+		"password": la.password,
 	}
 
-	path := fmt.Sprintf("auth/ldap/login/%s", username)
+	path := fmt.Sprintf("auth/ldap/login/%s", la.username)
 
 	token, err := c.Logical().Write(path, data)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	fmt.Println("token :) ", token.Auth.ClientToken)
+
+	c.SetToken(token.Auth.ClientToken)
+	return c, err
 }
 
 //getTokenFromAppRole will return token

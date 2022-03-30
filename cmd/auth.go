@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2022 Isan Rivkin isanrivkin@gmail.com
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"os"
 
 	ls "github.com/isan-rivkin/vault-searcher/lib/localstore"
+	"github.com/isan-rivkin/vault-searcher/lib/search"
 	"github.com/isan-rivkin/vault-searcher/lib/vault"
 	"github.com/spf13/cobra"
 )
@@ -40,15 +41,32 @@ var authCmd = &cobra.Command{
 $auth --update-creds 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		search.TEST()
 
-		vaultAddr := os.Getenv("VAULT_ADDR")
-		if err := setAccessCredentialsValues(); err != nil {
+		client := runDefaultAuth()
+
+		nodes, err := client.ListTreeFiltered("some-mount")
+
+		if err != nil {
 			panic(err)
 		}
-		vault.LdapLogin(*username, *password, vaultAddr)
+
+		for _, n := range nodes {
+			fmt.Println("-> " + n.T + " : " + vault.NodeType(n.KeyValue))
+		}
 	},
 }
 
+func runDefaultAuth() vault.Client[vault.Authenticator] {
+	vaultAddr := os.Getenv("VAULT_ADDR")
+	if err := setAccessCredentialsValues(); err != nil {
+		panic(err)
+	}
+	auth := vault.NewLdapAuth(*username, *password, vaultAddr)
+
+	client := vault.NewClient(auth)
+	return client
+}
 func setAccessCredentialsValues() error {
 	if *method != "ldap" {
 		return fmt.Errorf("only ldap method supported not %s", *method)

@@ -10,12 +10,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func assemblePath(path string, client *vaultApi.Client) (string, error) {
-
+func AssemblePath(path string, client *vaultApi.Client) (string, error) {
+	// for read its data for list its metadata
+	pathIndicator := "metadata"
 	// check if already contains v2
 
 	if splitted := strings.Split(path, "/"); len(splitted) > 2 {
-		if splitted[1] == "data" {
+		if splitted[1] == pathIndicator {
 			//already appended before
 			return path, nil
 		}
@@ -31,7 +32,7 @@ func assemblePath(path string, client *vaultApi.Client) (string, error) {
 
 	if v2 {
 		// for read its data for list its metadata
-		path = AddPrefixToVKVPath(path, mount, "data")
+		path = AddPrefixToVKVPath(path, mount, pathIndicator)
 	}
 
 	return path, nil
