@@ -1,6 +1,6 @@
 # S.U.R.F 
 
-![image info](./docs/surf-gopher.png)
+![image info](./docs/s-logo.png)
 
 CLI Text Search across your infrastructure platforms.
 
