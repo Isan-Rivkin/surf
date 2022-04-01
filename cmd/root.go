@@ -33,7 +33,7 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "surf",
-	Short: "CLI Text Search across your infrastructure platforms.",
+	Short: "Free Text Search across your infrastructure platforms via CLI.",
 	Long:  getEnvVarConfig(),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setLogLevel()

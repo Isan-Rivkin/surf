@@ -1,8 +1,8 @@
 # S.U.R.F 
 
-![image info](./docs/s-logo.png)
+Free Text Search across your infrastructure platforms via CLI.
 
-CLI Text Search across your infrastructure platforms.
+![image info](./docs/xs-logo.png)
 
 # Supported Platforms
 
