@@ -1,5 +1,7 @@
 # S.U.R.F 
 
+![image info](./docs/surf-gopher.png)
+
 CLI Text Search across your infrastructure platforms.
 
 # Supported Platforms
