@@ -20,7 +20,7 @@ import (
 	"os"
 
 	ls "github.com/isan-rivkin/search-unified-recusive-fast/lib/localstore"
-	"github.com/isan-rivkin/search-unified-recusive-fast/lib/search"
+	search "github.com/isan-rivkin/search-unified-recusive-fast/lib/search/vaultsearch"
 	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
