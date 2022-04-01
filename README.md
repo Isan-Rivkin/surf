@@ -1,17 +1,28 @@
-# WIP: Vault Search 
+# S.U.R.F 
 
-Search secrets across Hashicorp Vault 
+CLI Text Search across your infrastructure platforms.
+
+# Supported Platforms
+
+- [x] [Vault](https://www.vaultproject.io/)
+- [ ] Kubernetes - WIP  
+- [ ] AWS Route53 - WIP  
+- [ ] Consul - WIP 
 
 # Usage 
 
 ```bash
-$vs -q token 
+$surf search -q aws 
 ```
 
-# Auth Methods
+# Supported Auth methods per platform
+
+*Please open a PR and request additional methods if you need.*
+
+## Vault
 
 - [x] LDAP 
-- [x] Approle 
+- [ ] Approle 
 - [ ] AWS 
 - [ ] Token 
 

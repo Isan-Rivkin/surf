@@ -1,4 +1,4 @@
-module github.com/isan-rivkin/vault-searcher
+module github.com/isan-rivkin/search-unified-recusive-fast
 
 go 1.18
 

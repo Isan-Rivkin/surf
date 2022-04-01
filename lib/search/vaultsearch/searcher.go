@@ -1,9 +1,9 @@
-package search
+package vaultsearch
 
 import (
 	"math"
 
-	"github.com/isan-rivkin/vault-searcher/lib/vault"
+	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
 )
 
 func TEST() {}
@@ -41,16 +41,4 @@ func NewSearchInput(val, basePath string, parallel int) *Input {
 
 type Searcher[C VC, M Matcher] interface {
 	Search(i *Input) (*Output, error)
-}
-
-type RecursiveSearcher[C VC, M Matcher] struct {
-	Client     VC
-	Comparator Matcher
-}
-
-func NewRecursiveSearcher[C VC, Comp Matcher](c VC, m Matcher) Searcher[VC, Matcher] {
-	return &RecursiveSearcher[VC, Matcher]{
-		Client:     c,
-		Comparator: m,
-	}
 }

@@ -19,10 +19,16 @@ import (
 	"errors"
 	"fmt"
 
-	ls "github.com/isan-rivkin/vault-searcher/lib/localstore"
+	ls "github.com/isan-rivkin/search-unified-recusive-fast/lib/localstore"
 	"github.com/manifoldco/promptui"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+)
+
+var (
+	clearKeyring *bool
+	resetKeyring *bool
+	listKeyring  *bool
 )
 
 // keyringCmd represents the keyring command
@@ -88,5 +94,7 @@ func getUserInteractiveCredentials() (string, string, error) {
 
 func init() {
 	authCmd.AddCommand(keyringCmd)
-
+	clearKeyring = authCmd.PersistentFlags().Bool("clear", false, "delete the secrets stored on your OS keyring related to this app")
+	resetKeyring = authCmd.PersistentFlags().Bool("reset", false, "reset the secrets stored on your OS keyring")
+	listKeyring = authCmd.PersistentFlags().Bool("list", false, "list the secrets stored on your OS keyring related to this app")
 }

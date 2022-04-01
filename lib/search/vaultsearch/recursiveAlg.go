@@ -1,12 +1,24 @@
-package search
+package vaultsearch
 
 import (
 	"math"
 	"sync"
 
-	"github.com/isan-rivkin/vault-searcher/lib/vault"
+	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
 	log "github.com/sirupsen/logrus"
 )
+
+type RecursiveSearcher[C VC, M Matcher] struct {
+	Client     VC
+	Comparator Matcher
+}
+
+func NewRecursiveSearcher[C VC, Comp Matcher](c VC, m Matcher) Searcher[VC, Matcher] {
+	return &RecursiveSearcher[VC, Matcher]{
+		Client:     c,
+		Comparator: m,
+	}
+}
 
 //
 func SplitIntoNChunks[T any](items []T, n int) [][]T {

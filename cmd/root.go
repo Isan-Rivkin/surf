@@ -32,8 +32,8 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "vault-searcher",
-	Short: "A brief description of your application",
+	Use:   "surf",
+	Short: "CLI Text Search across your infrastructure platforms.",
 	Long:  getEnvVarConfig(),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setLogLevel()
@@ -93,6 +93,12 @@ func init() {
 
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vault-searcher.yaml)")
 	verboseLevel = rootCmd.PersistentFlags().CountP("verbose", "v", "verbosity level -vvv")
+
+	// configure auth related
+	password = rootCmd.PersistentFlags().StringP("password", "s", "", "store password for future auth locally on your OS keyring")
+	username = rootCmd.PersistentFlags().StringP("username", "u", "", "store username for future auth locally on your OS keyring")
+	updateLocalCredentials = rootCmd.PersistentFlags().Bool("update-creds", false, "update credentials locally on your OS keyring")
+	method = rootCmd.PersistentFlags().StringP("auth", "a", "ldap", "authentication method")
 
 }
 

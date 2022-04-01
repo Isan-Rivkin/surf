@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "github.com/isan-rivkin/vault-searcher/cmd"
+import "github.com/isan-rivkin/search-unified-recusive-fast/cmd"
 
 func main() {
 	cmd.Execute()

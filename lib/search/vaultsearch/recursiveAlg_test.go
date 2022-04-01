@@ -1,9 +1,9 @@
-package search_test
+package vaultsearch_test
 
 import (
 	"testing"
 
-	"github.com/isan-rivkin/vault-searcher/lib/search"
+	search "github.com/isan-rivkin/search-unified-recusive-fast/lib/search/vaultsearch"
 	"github.com/magiconair/properties/assert"
 )
 

@@ -19,9 +19,10 @@ import (
 	"fmt"
 	"os"
 
-	ls "github.com/isan-rivkin/vault-searcher/lib/localstore"
-	"github.com/isan-rivkin/vault-searcher/lib/search"
-	"github.com/isan-rivkin/vault-searcher/lib/vault"
+	ls "github.com/isan-rivkin/search-unified-recusive-fast/lib/localstore"
+	"github.com/isan-rivkin/search-unified-recusive-fast/lib/search"
+	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ var (
 // authCmd represents the auth command
 var authCmd = &cobra.Command{
 	Use:   "auth",
-	Short: "Authentication related stuff",
+	Short: "Authentication related config",
 	Long: `
 $auth --update-creds 
 	`,
@@ -60,13 +61,14 @@ $auth --update-creds
 func runDefaultAuth() vault.Client[vault.Authenticator] {
 	vaultAddr := os.Getenv("VAULT_ADDR")
 	if err := setAccessCredentialsValues(); err != nil {
-		panic(err)
+		log.WithError(err).Fatal("failed auth to Vault")
 	}
 	auth := vault.NewLdapAuth(*username, *password, vaultAddr)
 
 	client := vault.NewClient(auth)
 	return client
 }
+
 func setAccessCredentialsValues() error {
 	if *method != "ldap" {
 		return fmt.Errorf("only ldap method supported not %s", *method)
@@ -99,8 +101,4 @@ func setAccessCredentialsValues() error {
 }
 func init() {
 	rootCmd.AddCommand(authCmd)
-	password = authCmd.PersistentFlags().StringP("password", "p", "", "store password for future auth locally on your OS keyring")
-	username = authCmd.PersistentFlags().StringP("username", "u", "", "store username for future auth locally on your OS keyring")
-	updateLocalCredentials = authCmd.PersistentFlags().Bool("update-creds", false, "update credentials in locally on your OS keyring")
-	method = authCmd.PersistentFlags().StringP("method", "m", "ldap", "authentication method")
 }

@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/isan-rivkin/vault-searcher/lib/search"
-	"github.com/isan-rivkin/vault-searcher/lib/vault"
+	"github.com/isan-rivkin/search-unified-recusive-fast/lib/search"
+	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -38,7 +38,7 @@ var searchCmd = &cobra.Command{
 	Use:   "search",
 	Short: "pattern match again storage in valut",
 	Long: `
-$vault-searcher search -q aws -m backend-secrets/prod  -t 15
+$surf search -q aws -m backend-secrets/prod  -t 15
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 
