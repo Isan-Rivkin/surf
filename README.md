@@ -1,4 +1,4 @@
-# S.U.R.F 
+# SURF
 
 Free Text Search across your infrastructure platforms via CLI.
 
