@@ -25,6 +25,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+const AppName string = "surf"
+
 var (
 	cfgFile      string
 	verboseLevel *int
@@ -32,7 +34,7 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "surf",
+	Use:   AppName,
 	Short: "Free Text Search across your infrastructure platforms via CLI.",
 	Long:  getEnvVarConfig(),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -102,19 +104,23 @@ func init() {
 
 }
 
-const EnvVarPrefix string = "SEARCHER"
+const (
+	EnvVarPrefix             string = "SURF"
+	EnvKeyVaultDefaultPrefix string = "VAULT_DEFAULT_PREFIX"
+	EnvKeyVaultDefaultMount  string = "VAULT_DEFAULT_MOUNT"
+)
 
 var confEnvVars = []struct {
 	Value       string
 	Description string
 }{
 	{
-		Value:       "DEFAULT_MOUNT",
-		Description: "Root mount to start the search from in Vault",
+		Value:       EnvKeyVaultDefaultMount,
+		Description: "Mount to start the search from in Vault",
 	},
 	{
-		Value:       "DEFAULT_PREFIX",
-		Description: "Prefix to start the search from in Vault appended to the default mount",
+		Value:       EnvKeyVaultDefaultPrefix,
+		Description: "Prefix to start the search from in Vault appended to mount",
 	},
 }
 
@@ -128,15 +134,18 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".vault-searcher" (without extension).
+		// Search config in home directory with name ".surf" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".vault-searcher")
+		viper.SetConfigName(".surf")
 	}
 
 	viper.SetEnvPrefix(EnvVarPrefix)
-	viper.BindEnv("DEFAULT_PREFIX")
-	viper.BindEnv("DEFAULT_MOUNT")
+
+	for _, v := range confEnvVars {
+		viper.BindEnv(v.Value)
+	}
+
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.

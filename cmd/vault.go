@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 Isan Rivkin isanrivkin@gmail.com
+Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	search "github.com/isan-rivkin/search-unified-recusive-fast/lib/search/vaultsearch"
@@ -33,21 +34,21 @@ var (
 	outputWebURL *bool
 )
 
-// searchCmd represents the search command
-var searchCmd = &cobra.Command{
-	Use:   "search",
-	Short: "pattern match again storage in valut",
+// vaultCmd represents the vault command
+var vaultCmd = &cobra.Command{
+	Use:   "vault",
+	Short: "pattern match again keys in Valut",
 	Long: `
-$surf search -q aws -m backend-secrets/prod  -t 15
+	$surf search -q aws -m backend-secrets/prod  -t 15
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		mount := getEnvOrOverride(mount, "default_mount")
-		prefix := getEnvOrOverride(prefix, "default_prefix")
+		mount := getEnvOrOverride(mount, EnvKeyVaultDefaultMount)
+		prefix := getEnvOrOverride(prefix, EnvKeyVaultDefaultPrefix)
 
 		basePath := filepath.Join(*mount, *prefix)
 
-		client := runDefaultAuth()
+		client := runVaultDefaultAuth()
 
 		log.WithFields(log.Fields{
 			"address":   client.GetVaultAddr(),
@@ -77,21 +78,23 @@ $surf search -q aws -m backend-secrets/prod  -t 15
 	},
 }
 
+func runVaultDefaultAuth() vault.Client[vault.Authenticator] {
+	vaultAddr := os.Getenv("VAULT_ADDR")
+	if err := setVaultAccessCredentialsValues(); err != nil {
+		log.WithError(err).Fatal("failed auth to Vault")
+	}
+	auth := vault.NewLdapAuth(*username, *password, vaultAddr)
+
+	client := vault.NewClient(auth)
+	return client
+}
+
 func init() {
-	rootCmd.AddCommand(searchCmd)
+	rootCmd.AddCommand(vaultCmd)
+	query = vaultCmd.PersistentFlags().StringP("query", "q", "", "search query regex supported")
+	mount = vaultCmd.PersistentFlags().StringP("mount", "m", "", "mount to start the search at the root")
+	prefix = vaultCmd.PersistentFlags().StringP("prefix", "p", "", "$mount/prefix inside the mount to search in")
+	parallel = vaultCmd.PersistentFlags().IntP("threads", "t", 10, "parallel search number")
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// searchCmd.PersistentFlags().String("foo", "", "A help for foo")
-	query = searchCmd.PersistentFlags().StringP("query", "q", "", "search query regex supported")
-	mount = searchCmd.PersistentFlags().StringP("mount", "m", "", "mount to start the search at the root")
-	prefix = searchCmd.PersistentFlags().StringP("prefix", "p", "", "$mount/prefix inside the mount to search in")
-	parallel = searchCmd.PersistentFlags().IntP("threads", "t", 10, "parallel search number")
-
-	outputWebURL = searchCmd.PersistentFlags().Bool("output-url", true, "defaullt output is web urls to click on and go to the browser UI")
-
-	//searchCmd.MarkPersistentFlagRequired("query")
-	//searchCmd.MarkPersistentFlagRequired("mount")
+	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "defaullt output is web urls to click on and go to the browser UI")
 }
