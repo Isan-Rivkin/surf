@@ -33,6 +33,36 @@ Store LDAP auth on your OS keychain:
 surf config
 ```
 
+# Install 
+
+### Brew 
+
+MacOS (and ubuntu supported) installation via Brew:
+
+```bash
+brew tap isan-rivkin/toolbox
+brew install surf
+```
+
+### Download Binary
+
+1. [from releases](https://github.com/Isan-Rivkin/surf/releases)
+
+2. Move the binary to global dir and change name to `surf`:
+
+```bash
+cd <downloaded zip dir>
+mv surf /usr/local/bin
+```
+
+### Install from Source
+
+```bash
+git clone git@github.com:Isan-Rivkin/surf.git
+cd surf
+go run main.go
+```
+
 # Supported Auth methods per platform
 
 *Please open a PR and request additional methods if you need.*
