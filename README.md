@@ -44,4 +44,10 @@ surf config
 - [ ] AWS 
 - [ ] Token 
 
+# Version check 
+
+No Data is collected it is purely [github.com](https://github.com/Isan-Rivkin/surf/releases) query.
+
+The CLI will query [github.com](https://github.com/Isan-Rivkin/surf/releases) to check if there is a newer version. 
+If you wish to opt out set `SURF_VERSION_CHECK=false`. 
 

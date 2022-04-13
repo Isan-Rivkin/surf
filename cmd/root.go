@@ -19,13 +19,17 @@ import (
 	"fmt"
 	"os"
 
+	v "github.com/isan-rivkin/cliversioner"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/spf13/viper"
 )
 
-const AppName string = "surf"
+const (
+	AppVersion = "1.0.0"
+	AppName    = "surf"
+)
 
 var (
 	cfgFile      string
@@ -39,8 +43,10 @@ var rootCmd = &cobra.Command{
 	Long:  getEnvVarConfig(),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setLogLevel()
+		go VersionCheck()
 	},
 	// Run: func(cmd *cobra.Command, args []string) {
+
 	// },
 }
 
@@ -86,6 +92,23 @@ func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 }
 
+func VersionCheck() {
+	var err error
+	optoutVar := fmt.Sprintf("%s_%s", EnvVarPrefix, EnvVersionCheckOptout)
+	i := v.NewInput(AppName, "https://github.com/isan-rivkin", AppVersion, &optoutVar)
+	out, err := v.CheckVersion(i)
+
+	if err != nil || out == nil {
+		log.WithError(err).Debug("failed checking latest version from github.com")
+		return
+	}
+
+	if out.Outdated {
+		m := fmt.Sprintf("%s is not latest, %s, upgrade to %s", out.CurrentVersion, out.Message, out.LatestVersion)
+		log.Warn(m)
+	}
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -108,6 +131,7 @@ const (
 	EnvVarPrefix             string = "SURF"
 	EnvKeyVaultDefaultPrefix string = "VAULT_DEFAULT_PREFIX"
 	EnvKeyVaultDefaultMount  string = "VAULT_DEFAULT_MOUNT"
+	EnvVersionCheckOptout    string = "VERSION_CHECK"
 )
 
 var confEnvVars = []struct {
@@ -121,6 +145,10 @@ var confEnvVars = []struct {
 	{
 		Value:       EnvKeyVaultDefaultPrefix,
 		Description: "Prefix to start the search from in Vault appended to mount",
+	},
+	{
+		Value:       EnvVersionCheckOptout,
+		Description: "if set true the tool will skip latest version check from github.com",
 	},
 }
 

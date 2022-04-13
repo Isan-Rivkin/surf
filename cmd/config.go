@@ -54,6 +54,7 @@ var optsToHandlers = map[string]func() error{
 	"Vault: store locally LDAP auth details":             setLocalstoreCredentials,
 	"Vault: set default mount path to start search from": getEnvConfigOutput(EnvKeyVaultDefaultMount, "enter default search mount"),
 	"List all stored keychain details":                   listAllKeychainDetails,
+	"Opt-Out from latest version check at github.com":    getEnvConfigOutput(EnvVersionCheckOptout, "type 'false' to opt-out"),
 	"exit": func() error {
 		os.Exit(0)
 		return nil
@@ -143,7 +144,7 @@ func getEnvConfigOutput(env, label string) func() error {
 			return err
 		}
 
-		fmt.Printf("to configure run:\n\t export %s=%s_%s", env, EnvVarPrefix, result)
+		fmt.Printf("to configure run:\n\t export %s_%s=%s", EnvVarPrefix, env, result)
 		os.Exit(0)
 		return nil
 	}
