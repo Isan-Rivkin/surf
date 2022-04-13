@@ -18,7 +18,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 Search the query `aws` in Vault: 
 
 ```bash
-$surf vault -q aws 
+surf vault -q aws 
 ```
 
 Configure a default mount to start search from in Vault: 
@@ -30,7 +30,7 @@ export SURF_VAULT_DEFAULT_MOUNT=<my-default-mount>
 Store LDAP auth on your OS keychain: 
 
 ```bash
-$surf config
+surf config
 ```
 
 # Supported Auth methods per platform
