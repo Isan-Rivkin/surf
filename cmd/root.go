@@ -27,20 +27,22 @@ import (
 )
 
 const (
-	AppVersion = "1.1.3"
+	AppVersion = "1.1.4"
 	AppName    = "surf"
 )
 
 var (
 	cfgFile      string
 	verboseLevel *int
+	checkVersion *bool
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   AppName,
-	Short: "Free Text Search across your infrastructure platforms via CLI.",
-	Long:  getEnvVarConfig(),
+	Use:     AppName,
+	Short:   "Free Text Search across your infrastructure platforms via CLI.",
+	Long:    getEnvVarConfig(),
+	Version: AppVersion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setLogLevel()
 		go VersionCheck()
