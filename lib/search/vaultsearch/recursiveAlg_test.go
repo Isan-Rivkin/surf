@@ -3,7 +3,7 @@ package vaultsearch_test
 import (
 	"testing"
 
-	search "github.com/isan-rivkin/search-unified-recusive-fast/lib/search/vaultsearch"
+	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
 	"github.com/magiconair/properties/assert"
 )
 

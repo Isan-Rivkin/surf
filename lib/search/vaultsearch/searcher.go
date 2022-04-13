@@ -3,7 +3,7 @@ package vaultsearch
 import (
 	"math"
 
-	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
+	"github.com/isan-rivkin/surf/lib/vault"
 )
 
 func TEST() {}

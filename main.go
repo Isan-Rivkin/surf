@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "github.com/isan-rivkin/search-unified-recusive-fast/cmd"
+import "github.com/isan-rivkin/surf/cmd"
 
 func main() {
 	cmd.Execute()

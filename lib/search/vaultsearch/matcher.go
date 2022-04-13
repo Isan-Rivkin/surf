@@ -19,7 +19,7 @@ type RegexMatcher struct {
 func NewDefaultRegexMatcher() Matcher {
 	return &RegexMatcher{
 		LowerHaystack: true,
-		LowerNeedle: true,
+		LowerNeedle:   true,
 	}
 }
 

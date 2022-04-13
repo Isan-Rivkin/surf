@@ -20,8 +20,8 @@ import (
 	"os"
 	"path/filepath"
 
-	search "github.com/isan-rivkin/search-unified-recusive-fast/lib/search/vaultsearch"
-	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
+	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
+	"github.com/isan-rivkin/surf/lib/vault"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +39,8 @@ var vaultCmd = &cobra.Command{
 	Use:   "vault",
 	Short: "pattern match again keys in Valut",
 	Long: `
-	$surf search -q aws -m backend-secrets/prod  -t 15
+	$surf vault -q aws -m backend-secrets/prod  -t 15
+	$surf vault -q aws -m 'user_.*pro' 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -97,4 +98,6 @@ func init() {
 	parallel = vaultCmd.PersistentFlags().IntP("threads", "t", 10, "parallel search number")
 
 	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "defaullt output is web urls to click on and go to the browser UI")
+
+	vaultCmd.MarkPersistentFlagRequired("query")
 }

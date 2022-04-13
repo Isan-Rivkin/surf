@@ -1,4 +1,4 @@
-module github.com/isan-rivkin/search-unified-recusive-fast
+module github.com/isan-rivkin/surf
 
 go 1.18
 

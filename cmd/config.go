@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	ls "github.com/isan-rivkin/search-unified-recusive-fast/lib/localstore"
+	ls "github.com/isan-rivkin/surf/lib/localstore"
 	"github.com/manifoldco/promptui"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -143,7 +143,7 @@ func getEnvConfigOutput(env, label string) func() error {
 			return err
 		}
 
-		fmt.Printf("to configure run:\n\t export %s=%s", env, result)
+		fmt.Printf("to configure run:\n\t export %s=%s_%s", env, EnvVarPrefix, result)
 		os.Exit(0)
 		return nil
 	}

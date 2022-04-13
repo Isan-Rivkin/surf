@@ -4,7 +4,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/isan-rivkin/search-unified-recusive-fast/lib/vault"
+	"github.com/isan-rivkin/surf/lib/vault"
 	log "github.com/sirupsen/logrus"
 )
 
