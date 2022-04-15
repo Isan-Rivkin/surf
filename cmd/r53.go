@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2022 Isan Rivkin isanrivkin@gmail.com
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,14 +29,10 @@ var (
 
 // r53Cmd represents the r53 command
 var r53Cmd = &cobra.Command{
-	Use:   "r53",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "r53 -q '*.some.dns.record.com'\n",
+	Short: "Query route53 to get your dns record values",
+	Long: `Query Route53 to get all sorts of information about a dns record.
+	r53 will use your default AWS credentials`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("r53 called")
 		query := "my.website.com"
