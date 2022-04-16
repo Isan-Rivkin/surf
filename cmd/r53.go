@@ -25,8 +25,11 @@ import (
 )
 
 var (
-	recordInput *string
-	awsProfile  string
+	recusiveSearchMaxDepth *int
+	recordInput            *string
+	awsProfile             string
+	skipNSVerification     bool
+	muteR53Logs            bool
 )
 
 // r53Cmd represents the r53 command
@@ -38,12 +41,9 @@ var r53Cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("r53 called")
 
-		debug := true
-		mute := true
-		skipNSVerification := false
+		debug := false
 		recurse := true
-		recurseDepth := 3
-		in, err := awsu.NewR53Input(aws.StringValue(recordInput), awsProfile, debug, mute, skipNSVerification, recurse, recurseDepth)
+		in, err := awsu.NewR53Input(aws.StringValue(recordInput), awsProfile, debug, muteR53Logs, skipNSVerification, recurse, *recusiveSearchMaxDepth)
 
 		if err != nil {
 
@@ -52,7 +52,6 @@ var r53Cmd = &cobra.Command{
 		_, err = awsu.SearchRoute53(in)
 
 		if err != nil {
-			fmt.Println("nu!!! ", err.Error())
 			log.WithError(err).Fatal("failed searching r53")
 		}
 
@@ -63,5 +62,10 @@ func init() {
 	rootCmd.AddCommand(r53Cmd)
 	recordInput = r53Cmd.PersistentFlags().StringP("record", "q", "", "target record to find in R53, wildcard supported")
 	r53Cmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", "default", "~/.aws/credentials chosen account")
+	r53Cmd.PersistentFlags().BoolVar(&muteR53Logs, "mute-logs", false, "if flag set then logs from route53-cli sdk will be muted")
+	r53Cmd.PersistentFlags().BoolVar(&skipNSVerification, "ns-skip", false, "if set then nameservers will not be verified against the hosted zone result")
+	maxDepth := 3
+	r53Cmd.PersistentFlags().IntVarP(&maxDepth, "max-depth", "d", maxDepth, "if -R is used then specifies when to stop recursive search depth")
+	recusiveSearchMaxDepth = &maxDepth
 	r53Cmd.MarkPersistentFlagRequired("record")
 }
