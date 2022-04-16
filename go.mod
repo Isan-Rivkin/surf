@@ -3,6 +3,7 @@ module github.com/isan-rivkin/surf
 go 1.18
 
 require (
+	github.com/aws/aws-sdk-go v1.35.30
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/isan-rivkin/cliversioner v0.0.0-20220413085252-f4ec446e8946
 	github.com/isan-rivkin/route53-cli v0.4.2
@@ -18,7 +19,6 @@ require (
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/aws/aws-sdk-go v1.35.30 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/danieljoos/wincred v1.1.0 // indirect
