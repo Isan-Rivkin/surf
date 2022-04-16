@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/isan-rivkin/surf/lib/awsu"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ import (
 
 var (
 	recordInput *string
+	awsProfile  string
 )
 
 // r53Cmd represents the r53 command
@@ -35,20 +37,22 @@ var r53Cmd = &cobra.Command{
 	r53 will use your default AWS credentials`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("r53 called")
-		query := "my.website.com"
+
 		debug := true
 		mute := true
 		skipNSVerification := false
 		recurse := true
 		recurseDepth := 3
-		in, err := awsu.NewR53Input(query, "default", debug, mute, skipNSVerification, recurse, recurseDepth)
+		in, err := awsu.NewR53Input(aws.StringValue(recordInput), awsProfile, debug, mute, skipNSVerification, recurse, recurseDepth)
 
 		if err != nil {
+
 			log.WithError(err).Fatal("failed creating r53 input")
 		}
 		_, err = awsu.SearchRoute53(in)
 
 		if err != nil {
+			fmt.Println("nu!!! ", err.Error())
 			log.WithError(err).Fatal("failed searching r53")
 		}
 
@@ -57,6 +61,7 @@ var r53Cmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(r53Cmd)
-	recordInput = r53Cmd.PersistentFlags().StringP("domain", "q", "", "target domain to find in R53, wildcard supported")
-	r53Cmd.MarkPersistentFlagRequired("domain")
+	recordInput = r53Cmd.PersistentFlags().StringP("record", "q", "", "target record to find in R53, wildcard supported")
+	r53Cmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", "default", "~/.aws/credentials chosen account")
+	r53Cmd.MarkPersistentFlagRequired("record")
 }

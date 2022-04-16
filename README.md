@@ -76,12 +76,11 @@ go run main.go
 
 *Please open a PR and request additional methods if you need.*
 
-## Vault
+## Authentication Methods 
 
-- [x] LDAP 
-- [ ] Approle 
-- [ ] AWS 
-- [ ] Token 
+- [x] Vault - LDAP 
+- [x] AWS - via profile on `~/.aws/credentials file`
+
 
 # Version check 
 
