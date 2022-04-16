@@ -18,7 +18,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 Based on [AWS Route53](https://github.com/Isan-Rivkin/route53-cli): Search what's behind domain `api.my-corp.com`: 
 
 ```bash 
-surf r53 -r api.my-corp.com
+surf r53 -q api.my-corp.com
 ```
 
 # Vault Usage 
