@@ -10,8 +10,9 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 
 - [x] [Vault](https://www.vaultproject.io/)
 - [X] [AWS Route53](https://github.com/Isan-Rivkin/route53-cli)
-- [ ] Kubernetes - WIP  
-- [ ] Consul - WIP 
+- [X] [AWS ACM](https://aws.amazon.com/certificate-manager/) - WIP 
+- [ ] Kubernetes - TODO  
+- [ ] Consul - TODO
 
 # AWS Route53 Usage 
 
