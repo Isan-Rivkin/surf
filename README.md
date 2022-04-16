@@ -9,9 +9,17 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 # Supported Platforms
 
 - [x] [Vault](https://www.vaultproject.io/)
+- [X] [AWS Route53](https://github.com/Isan-Rivkin/route53-cli)
 - [ ] Kubernetes - WIP  
-- [ ] AWS Route53 - WIP  
 - [ ] Consul - WIP 
+
+# AWS Route53 Usage 
+
+Based on [AWS Route53](https://github.com/Isan-Rivkin/route53-cli): Search what's behind domain `api.my-corp.com`: 
+
+```bash 
+surf r53 -r api.my-corp.com
+```
 
 # Vault Usage 
 
@@ -67,12 +75,11 @@ go run main.go
 
 *Please open a PR and request additional methods if you need.*
 
-## Vault
+## Authentication Methods 
 
-- [x] LDAP 
-- [ ] Approle 
-- [ ] AWS 
-- [ ] Token 
+- [x] Vault - LDAP 
+- [x] AWS - via profile on `~/.aws/credentials file`
+
 
 # Version check 
 
