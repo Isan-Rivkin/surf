@@ -17,16 +17,19 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/isan-rivkin/surf/lib/awsu"
+	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	awsRegion string
+	awsRegion   string
+	filterQuery string
 )
 
 // acmCmd represents the acm command
@@ -54,14 +57,32 @@ var acmCmd = &cobra.Command{
 		}
 
 		api := awsu.NewAcmClient(acmClient)
-
-		result, err := api.ListAndFilter(1, false, func(c *acm.CertificateDetail) bool {
-
-			return true
+		parallel := 20
+		m := search.NewDefaultRegexMatcher()
+		result, err := api.ListAndFilter(parallel, true, func(c *acm.CertificateDetail) bool {
+			domains := aws.StringValueSlice(c.SubjectAlternativeNames)
+			for _, d := range domains {
+				if isMatch, _ := m.IsMatch(filterQuery, d); isMatch {
+					return true
+				}
+			}
+			return false
 		})
 
 		for _, c := range result.Certificates {
-			fmt.Println(aws.StringValue(c.CertificateArn))
+			arn := aws.StringValue(c.CertificateArn)
+			splitted := strings.Split(arn, "/")
+			id := splitted[len(splitted)-1]
+			url := awsu.GenerateACMWebURL(auth.EffectiveRegion, id)
+			status := aws.StringValue(c.Status)
+			domain := aws.StringValue(c.DomainName)
+			inUseBy := aws.StringValueSlice(c.InUseBy)
+			fmt.Println(fmt.Sprintf("============== %s : %s", domain, status))
+			fmt.Println("")
+			fmt.Println(url)
+			fmt.Println("")
+			fmt.Println(fmt.Sprintf("Used By: %v", inUseBy))
+			fmt.Println("")
 		}
 	},
 }
@@ -80,4 +101,7 @@ func init() {
 	// acmCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	acmCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", "default", "~/.aws/credentials chosen account")
 	acmCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
+	acmCmd.PersistentFlags().StringVarP(&filterQuery, "query", "q", "", "filter query regex supported")
+
+	acmCmd.MarkPersistentFlagRequired("query")
 }

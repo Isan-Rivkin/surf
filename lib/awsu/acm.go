@@ -10,6 +10,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type _acmAsyncRes struct {
+	C   *acm.CertificateDetail
+	Err error
+}
+
 type ACMFilter = func(c *acm.CertificateDetail) bool
 
 type ACMResult struct {
@@ -25,7 +30,9 @@ type AcmClient struct {
 }
 
 func NewAcmClient(c *acm.ACM) AcmAPI {
-	return &AcmClient{c: c}
+	return &AcmClient{
+		c: c,
+	}
 }
 
 func (a *AcmClient) client() *acm.ACM {
@@ -52,36 +59,71 @@ func (a *AcmClient) ListAndFilter(parallel int, describe bool, filter ACMFilter)
 		Certificates: []*acm.CertificateDetail{},
 	}
 
+	filteredResult := &ACMResult{
+		Certificates: []*acm.CertificateDetail{},
+	}
+
 	certsSummary, err := a.GetAll()
 
 	if err != nil {
 		return nil, err
 	}
 
+	pool := NewWorkerPool(parallel)
+	asyncResults := make(chan *_acmAsyncRes, len(certsSummary))
+
 	for _, cs := range certsSummary {
+
 		certArn := aws.StringValue(cs.CertificateArn)
-		var cert *acm.CertificateDetail
 
 		if describe {
-			reqInput := &acm.DescribeCertificateInput{
-				CertificateArn: aws.String(certArn),
-			}
+			pool.Submit(func() {
+				reqInput := &acm.DescribeCertificateInput{
+					CertificateArn: aws.String(certArn),
+				}
+				req, out := a.client().DescribeCertificateRequest(reqInput)
 
-			out, err := a.client().DescribeCertificate(reqInput)
-			if err != nil || out == nil {
-				log.WithField("arn", aws.StringValue(reqInput.CertificateArn)).WithError(err).Error("failed describing ceritificate")
-			}
-			cert = out.Certificate
+				var cert *acm.CertificateDetail
+				err := req.Send()
+				if err != nil || out == nil {
+					log.WithField("arn", aws.StringValue(reqInput.CertificateArn)).WithError(err).Error("failed describing ceritificate")
+				} else {
+					cert = out.Certificate
+				}
+				asyncResults <- &_acmAsyncRes{C: cert, Err: err}
+			})
+
 		} else {
-			cert = &acm.CertificateDetail{CertificateArn: aws.String(certArn)}
-		}
-
-		if isMatch := filter(cert); isMatch {
+			cert := &acm.CertificateDetail{CertificateArn: aws.String(certArn)}
 			result.Certificates = append(result.Certificates, cert)
 		}
 	}
+	if describe {
+		pool.RunAll()
+		size := len(certsSummary)
+		counter := 1
+		for r := range asyncResults {
+			if counter >= size {
+				break
+			}
+			counter++
 
-	return result, err
+			if r.Err != nil {
+				continue
+			}
+			if isMatch := filter(r.C); isMatch {
+				filteredResult.Certificates = append(filteredResult.Certificates, r.C)
+			}
+		}
+	} else {
+		for _, cert := range result.Certificates {
+			if isMatch := filter(cert); isMatch {
+				filteredResult.Certificates = append(filteredResult.Certificates, cert)
+			}
+		}
+	}
+
+	return filteredResult, err
 }
 
 func GenerateACMWebURL(region, certId string) string {

@@ -10,12 +10,14 @@ import (
 )
 
 type AuthInput struct {
-	Provider client.ConfigProvider
-	Configs  []*aws.Config
+	Provider        client.ConfigProvider
+	Configs         []*aws.Config
+	EffectiveRegion string
 }
 
 func NewSessionInput(profile, region string) (*AuthInput, error) {
 	sess := aws_utils.GetEnvSession(profile)
+	effectiveRegion := aws.StringValue(sess.Config.Region)
 	if sess == nil {
 		return nil, fmt.Errorf("failed creating env sessions profile %s region %s", profile, region)
 	}
@@ -23,9 +25,11 @@ func NewSessionInput(profile, region string) (*AuthInput, error) {
 	c := aws.NewConfig()
 	if region != "" {
 		c = c.WithRegion(region)
+		effectiveRegion = region
 	}
 	conf := []*aws.Config{c}
-	return &AuthInput{Provider: sess, Configs: conf}, nil
+
+	return &AuthInput{Provider: sess, Configs: conf, EffectiveRegion: effectiveRegion}, nil
 }
 
 func NewACM(in *AuthInput) (*acm.ACM, error) {
