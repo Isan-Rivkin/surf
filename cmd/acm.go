@@ -167,26 +167,27 @@ var acmCmd = &cobra.Command{
 				validationMethods += m + " |"
 			}
 
+			labelsOrder := []string{"Domain", "URL", "Status"}
+
 			certInfo := map[string]string{
 				"Domain": domain,
 				"URL":    url,
 				"Status": status,
 			}
 
-			tui.GetTable().PrintInfoBox(certInfo)
-			// fmt.Println(fmt.Sprintf("============== %s : %s", domain, status))
-			// fmt.Println("")
-			// fmt.Println(url)
 			if getLogLevelFromVerbosity() >= log.DebugLevel {
-				fmt.Println(fmt.Sprintf("Created: %s", created.String()))
-				fmt.Println("")
-				fmt.Println(fmt.Sprintf("Expire In: %d days", int(expireDays)))
-				fmt.Println("")
-				fmt.Println(fmt.Sprintf("Validation: %s [%s]", validationMethods, validationStatus))
-				fmt.Println("")
-				fmt.Println(fmt.Sprintf("Used By: %v", inUseBy))
-				fmt.Println("")
+				labelsOrder = append(labelsOrder, []string{"Created", "Expire In", "Validation"}...)
+				certInfo["Created"] = created.String()
+				certInfo["Expire In"] = fmt.Sprintf("%d", int(expireDays))
+				certInfo["Validation"] = fmt.Sprintf("%s [%s]", validationMethods, validationStatus)
+				for i, arn := range inUseBy {
+					useByLabel := fmt.Sprintf("Used By %d", i)
+					certInfo[useByLabel] = arn
+					labelsOrder = append(labelsOrder, useByLabel)
+				}
 			}
+
+			tui.GetTable().PrintInfoBox(certInfo, labelsOrder)
 		}
 	},
 }
