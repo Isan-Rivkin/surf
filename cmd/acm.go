@@ -42,15 +42,25 @@ var (
 // acmCmd represents the acm command
 var acmCmd = &cobra.Command{
 	Use:   "acm",
-	Short: "search in ACM",
+	Short: "search in ACM certificates on AWS",
 	Long: `Options to search:
-	- Domain Based
-	- Attached Resources
+
+	- Domain Based (default)
+
+	surf acm -q my-domain.com
+
+	- Based on Resources using the certificate 
+
+	surf acm -q some-load-balancer-arn --filter-used-by
+
 	- Certificate ID 
+
+	surf acm -q some-acm-id --filter-id
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		s := &printer.SpinnerApi{}
-		tui := printer.NewPrinter[printer.Loader](s)
+		t := printer.NewTablePrinter()
+		tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
 
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
@@ -115,6 +125,7 @@ var acmCmd = &cobra.Command{
 		})
 
 		for _, c := range result.Certificates {
+
 			arn := aws.StringValue(c.CertificateArn)
 			splitted := strings.Split(arn, "/")
 			id := splitted[len(splitted)-1]
@@ -156,19 +167,26 @@ var acmCmd = &cobra.Command{
 				validationMethods += m + " |"
 			}
 
-			fmt.Println(fmt.Sprintf("============== %s : %s", domain, status))
-			fmt.Println("")
-			fmt.Println(url)
-			fmt.Println("")
-			fmt.Println(fmt.Sprintf("Created: %s", created.String()))
-			fmt.Println("")
-			fmt.Println(fmt.Sprintf("Expire In: %d days", int(expireDays)))
-			fmt.Println("")
-			fmt.Println(fmt.Sprintf("Validation: %s [%s]", validationMethods, validationStatus))
-			fmt.Println("")
-			fmt.Println(fmt.Sprintf("Used By: %v", inUseBy))
-			fmt.Println("")
-			//fmt.Println(c.String())
+			certInfo := map[string]string{
+				"Domain": domain,
+				"URL":    url,
+				"Status": status,
+			}
+
+			tui.GetTable().PrintInfoBox(certInfo)
+			// fmt.Println(fmt.Sprintf("============== %s : %s", domain, status))
+			// fmt.Println("")
+			// fmt.Println(url)
+			if getLogLevelFromVerbosity() >= log.DebugLevel {
+				fmt.Println(fmt.Sprintf("Created: %s", created.String()))
+				fmt.Println("")
+				fmt.Println(fmt.Sprintf("Expire In: %d days", int(expireDays)))
+				fmt.Println("")
+				fmt.Println(fmt.Sprintf("Validation: %s [%s]", validationMethods, validationStatus))
+				fmt.Println("")
+				fmt.Println(fmt.Sprintf("Used By: %v", inUseBy))
+				fmt.Println("")
+			}
 		}
 	},
 }
