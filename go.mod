@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.35.30
+	github.com/briandowns/spinner v1.18.1
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/isan-rivkin/cliversioner v0.0.0-20220413085252-f4ec446e8946
 	github.com/isan-rivkin/route53-cli v0.4.2

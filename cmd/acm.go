@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2022 Isan Rivkin isanrivkin@gmail.com
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/isan-rivkin/surf/lib/awsu"
 	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
+	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -42,8 +43,9 @@ var acmCmd = &cobra.Command{
 	- Certificate ID 
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+		s := &printer.SpinnerApi{}
+		tui := printer.NewPrinter[printer.Loader](s)
 
-		fmt.Println("acm called")
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
 		if err != nil {
@@ -59,6 +61,9 @@ var acmCmd = &cobra.Command{
 		api := awsu.NewAcmClient(acmClient)
 		parallel := 20
 		m := search.NewDefaultRegexMatcher()
+
+		tui.GetLoader().Start("searching acm", "", "green")
+
 		result, err := api.ListAndFilter(parallel, true, func(c *acm.CertificateDetail) bool {
 			domains := aws.StringValueSlice(c.SubjectAlternativeNames)
 			for _, d := range domains {
@@ -68,6 +73,8 @@ var acmCmd = &cobra.Command{
 			}
 			return false
 		})
+
+		tui.GetLoader().Stop()
 
 		for _, c := range result.Certificates {
 			arn := aws.StringValue(c.CertificateArn)

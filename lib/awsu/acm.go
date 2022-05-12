@@ -2,11 +2,10 @@ package awsu
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/acm"
-	"github.com/isan-rivkin/route53-cli/aws_utils"
+	"github.com/isan-rivkin/surf/lib/common"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,7 +68,8 @@ func (a *AcmClient) ListAndFilter(parallel int, describe bool, filter ACMFilter)
 		return nil, err
 	}
 
-	pool := NewWorkerPool(parallel)
+	pool := common.NewWorkerPool(parallel)
+
 	asyncResults := make(chan *_acmAsyncRes, len(certsSummary))
 
 	for _, cs := range certsSummary {
@@ -86,7 +86,9 @@ func (a *AcmClient) ListAndFilter(parallel int, describe bool, filter ACMFilter)
 				var cert *acm.CertificateDetail
 				err := req.Send()
 				if err != nil || out == nil {
-					log.WithField("arn", aws.StringValue(reqInput.CertificateArn)).WithError(err).Error("failed describing ceritificate")
+					log.WithField("arn", certArn).
+						WithError(err).
+						Error("failed describing cert")
 				} else {
 					cert = out.Certificate
 				}
@@ -128,55 +130,4 @@ func (a *AcmClient) ListAndFilter(parallel int, describe bool, filter ACMFilter)
 
 func GenerateACMWebURL(region, certId string) string {
 	return fmt.Sprintf("https://console.aws.amazon.com/acm/home?region=%s#/certificates/%s", region, certId)
-}
-func Test() {
-	profile := "default"
-	region := "us-east-1"
-	sess := aws_utils.GetEnvSession(profile)
-	acmClient := acm.New(sess, aws.NewConfig().WithRegion(region))
-	if acmClient == nil {
-		log.Error("ACM client is nil")
-		return
-	}
-	// search certificates based on: domain
-	// Example iterating over at most 3 pages of a ListCertificates operation.
-	pageNum := 0
-	input := &acm.ListCertificatesInput{}
-	err := acmClient.ListCertificatesPages(input,
-		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
-			pageNum++
-			//fmt.Println(page)
-			for _, pc := range page.CertificateSummaryList {
-				certArn := aws.StringValue(pc.CertificateArn)
-				FilterCert(acmClient, certArn)
-			}
-			return pageNum <= 3
-		})
-	if err != nil {
-		log.WithError(err).Error("failed searching in acm")
-	}
-
-}
-
-func FilterCert(acmClient *acm.ACM, certArn string) {
-	reqInput := &acm.DescribeCertificateInput{
-		CertificateArn: aws.String(certArn),
-	}
-
-	out, err := acmClient.DescribeCertificate(reqInput)
-	if err != nil || out == nil {
-		log.WithField("arn", aws.StringValue(reqInput.CertificateArn)).WithError(err).Error("failed describing ceritificate")
-	}
-	cert := out.Certificate
-	//alternativeNames := aws.StringValueSlice(cert.SubjectAlternativeNames)
-	fmt.Println(cert)
-	fmt.Println(aws.StringValueSlice(cert.InUseBy))
-	splittedArn := strings.Split(certArn, "/")
-
-	certId := splittedArn[len(splittedArn)-1]
-	region := "us-east-1"
-	url := GenerateACMWebURL(region, certId)
-	fmt.Println(url)
-	// fmt.Println("DOMAIN = ", aws.StringValue(cert.DomainName), aws.StringValue(cert.Status))
-	// fmt.Println("===> ", alternativeNames)
 }
