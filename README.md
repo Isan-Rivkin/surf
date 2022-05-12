@@ -22,6 +22,22 @@ Based on [AWS Route53](https://github.com/Isan-Rivkin/route53-cli): Search what'
 surf r53 -q api.my-corp.com
 ```
 
+# AWS ACM Usage 
+
+Search inside ACM Certificates in AWS.
+
+Example search: containing a domain: 
+
+```bash
+surf acm -q my-domain.com
+```
+
+Example search: certificate attached to a loab balancer: 
+
+```bash
+surf acm -q 's:elasticloadbalancing:us-east-1:123:loadbalancer/app/alb' --filter-used-by
+```
+
 # Vault Usage 
 
 Search the query `aws` in Vault: 
