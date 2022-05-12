@@ -10,8 +10,9 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 
 - [x] [Vault](https://www.vaultproject.io/)
 - [X] [AWS Route53](https://github.com/Isan-Rivkin/route53-cli)
-- [ ] Kubernetes - WIP  
-- [ ] Consul - WIP 
+- [X] [AWS ACM](https://aws.amazon.com/certificate-manager/)
+- [ ] Kubernetes - TODO  
+- [ ] Consul - TODO
 
 # AWS Route53 Usage 
 
@@ -19,6 +20,22 @@ Based on [AWS Route53](https://github.com/Isan-Rivkin/route53-cli): Search what'
 
 ```bash 
 surf r53 -q api.my-corp.com
+```
+
+# AWS ACM Usage 
+
+Search inside ACM Certificates in AWS.
+
+Example search: containing a domain: 
+
+```bash
+surf acm -q my-domain.com
+```
+
+Example search: certificate attached to a loab balancer: 
+
+```bash
+surf acm -q 's:elasticloadbalancing:us-west-2:123:loadbalancer/app/alb' --filter-used-by
 ```
 
 # Vault Usage 

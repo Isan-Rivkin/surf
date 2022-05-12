@@ -3,9 +3,12 @@ module github.com/isan-rivkin/surf
 go 1.18
 
 require (
+	github.com/aws/aws-sdk-go v1.35.30
+	github.com/briandowns/spinner v1.18.1
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/isan-rivkin/cliversioner v0.0.0-20220413085252-f4ec446e8946
 	github.com/isan-rivkin/route53-cli v0.4.2
+	github.com/jedib0t/go-pretty/v6 v6.0.5
 	github.com/magiconair/properties v1.8.5
 	github.com/manifoldco/promptui v0.9.0
 	github.com/sirupsen/logrus v1.8.1
@@ -18,7 +21,6 @@ require (
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/aws/aws-sdk-go v1.35.30 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/danieljoos/wincred v1.1.0 // indirect
@@ -48,7 +50,6 @@ require (
 	github.com/hashicorp/vault/sdk v0.4.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jedib0t/go-pretty/v6 v6.0.5 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lixiangzhong/dnsutil v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
