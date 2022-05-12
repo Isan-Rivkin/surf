@@ -195,15 +195,6 @@ var acmCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(acmCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// acmCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// acmCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	acmCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", "default", "~/.aws/credentials chosen account")
 	acmCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	acmCmd.PersistentFlags().StringVarP(&filterQuery, "query", "q", "", "filter query regex supported")
