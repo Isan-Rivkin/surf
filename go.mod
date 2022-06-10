@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/aws/aws-sdk-go v1.35.30
 	github.com/briandowns/spinner v1.18.1
+	github.com/hashicorp/consul/api v1.12.0
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/isan-rivkin/cliversioner v0.0.0-20220413085252-f4ec446e8946
 	github.com/isan-rivkin/route53-cli v0.4.2
@@ -47,6 +48,7 @@ require (
 	github.com/hashicorp/go-version v1.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/hashicorp/serf v0.9.6 // indirect
 	github.com/hashicorp/vault/sdk v0.4.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
