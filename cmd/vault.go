@@ -37,7 +37,7 @@ var (
 // vaultCmd represents the vault command
 var vaultCmd = &cobra.Command{
 	Use:   "vault",
-	Short: "pattern match again keys in Valut",
+	Short: "pattern matching against keys in Vault",
 	Long: `
 	$surf vault -q aws -m backend-secrets/prod  -t 15
 	$surf vault -q aws -m 'user_.*pro' 
