@@ -38,7 +38,7 @@ Example search: certificate attached to a loab balancer:
 surf acm -q 's:elasticloadbalancing:us-west-2:123:loadbalancer/app/alb' --filter-used-by
 ```
 
-# Vault Usage 
+# Hashicorp Vault Usage 
 
 Search the query `aws` in Vault: 
 
@@ -56,6 +56,14 @@ Store LDAP auth on your OS keychain:
 
 ```bash
 surf config
+```
+
+# Hashicorp Consul Usage
+
+Search under the `scripts` path for keys ending with `.sh`
+
+```bash
+surf consul --prefix scripts --query "sh$"
 ```
 
 # Install 
@@ -96,6 +104,7 @@ go run main.go
 
 - [x] Vault - LDAP 
 - [x] AWS - via profile on `~/.aws/credentials file`
+- [x] Consul - None
 
 
 # Version check 
