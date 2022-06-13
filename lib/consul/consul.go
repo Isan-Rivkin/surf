@@ -5,11 +5,11 @@ import (
 )
 
 type ConsulClient struct {
-	_client *c.Client
+	client *c.Client
 }
 
 func (client *ConsulClient) List(prefix string) (c.KVPairs, error) {
-	kv := client._client.KV()
+	kv := client.client.KV()
 	query := c.QueryOptions{}
 	pairs, _, err := kv.List(prefix, &query)
 	if err != nil {
@@ -18,7 +18,7 @@ func (client *ConsulClient) List(prefix string) (c.KVPairs, error) {
 	return pairs, nil
 }
 
-func (client *ConsulClient) GetVaultAddr() string {
+func (client *ConsulClient) GetConsulAddr() string {
 	return c.DefaultConfig().Address
 }
 
@@ -28,6 +28,6 @@ func NewClient(address string) *ConsulClient {
 	}
 	client, _ := c.NewClient(&config)
 	return &ConsulClient{
-		_client: client,
+		client: client,
 	}
 }

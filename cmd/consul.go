@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 Isan Rivkin isanrivkin@gmail.com
+Copyright © 2022 Ali Ramberg lryahli@gmail.com
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	consul_query  *string
-	consul_prefix *string
+	consulPrefix *string
+	consulQuery  *string
 )
 
 // consulCmd represents the consul command
@@ -43,17 +43,17 @@ var consulCmd = &cobra.Command{
 
 		client := runConsulDefaultAuth()
 		log.WithFields(log.Fields{
-			"address":   client.GetVaultAddr(),
-			"base_path": *consul_prefix,
-			"query":     *consul_query,
+			"address":   client.GetConsulAddr(),
+			"base_path": *consulQuery,
+			"query":     *consulPrefix,
 		}).Info("starting search")
 
 		m := search.NewDefaultRegexMatcher()
 		s := consul.NewSearcher[consul.ConsulClient, search.Matcher](client, m)
-		output, err := s.Search(consul.NewSearchInput(*consul_query, *consul_prefix))
+		output, err := s.Search(consul.NewSearchInput(*consulPrefix, *consulQuery))
 
 		if err != nil {
-			panic(err)
+			log.WithError(err).Fatal("error while searching for keys")
 		}
 
 		for i, keys := range output.Matcher {
@@ -70,8 +70,8 @@ func runConsulDefaultAuth() consul.ConsulClient {
 
 func init() {
 	rootCmd.AddCommand(consulCmd)
-	consul_query = consulCmd.PersistentFlags().StringP("query", "q", "", "search query regex supported")
-	consul_prefix = consulCmd.PersistentFlags().StringP("prefix", "p", "/", "prefix of the search query")
+	consulPrefix = consulCmd.PersistentFlags().StringP("query", "q", "", "search query regex supported")
+	consulQuery = consulCmd.PersistentFlags().StringP("prefix", "p", "/", "the prefix the search query starts from")
 
 	vaultCmd.MarkPersistentFlagRequired("query")
 }
