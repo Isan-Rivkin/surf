@@ -35,8 +35,8 @@ var consulCmd = &cobra.Command{
 	Use:   "consul",
 	Short: "pattern matching against keys in Consul",
 	Long: `
-	$surf consul -q opsdog -p ops
-	$surf consul --query "^web/(production|sandboxes)"
+	$surf consul -q ldap -p ops
+	$surf consul --query "user=\w+\.\w+"
 	$surf consul --query --query "AWS_SECRET_ACCESS_KEY"
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
