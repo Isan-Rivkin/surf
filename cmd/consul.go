@@ -56,7 +56,7 @@ var consulCmd = &cobra.Command{
 			log.WithError(err).Fatal("error while searching for keys")
 		}
 
-		for i, keys := range output.Matcher {
+		for i, keys := range output.Matches {
 			fmt.Printf("%d. %s\n", i, keys)
 		}
 	},

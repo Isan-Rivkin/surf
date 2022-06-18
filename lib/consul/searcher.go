@@ -2,7 +2,6 @@ package consul
 
 import (
 	log "github.com/sirupsen/logrus"
-	
 )
 
 type Input struct {
@@ -13,7 +12,7 @@ type Input struct {
 }
 
 type Output struct {
-	Matcher []string
+	Matches []string
 }
 
 type Searcher[C ConsulClient, M Matcher] interface {
@@ -61,5 +60,5 @@ func (s *DefaultSearcher[CC, Matcher]) Search(i *Input) (*Output, error) {
 			matches = append(matches, key)
 		}
 	}
-	return &Output{Matcher: matches}, nil
+	return &Output{Matches: matches}, nil
 }
