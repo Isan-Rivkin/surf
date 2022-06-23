@@ -1,6 +1,7 @@
-package consul
+package consulsearch
 
 import (
+	consul "github.com/isan-rivkin/surf/lib/consul"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -9,18 +10,20 @@ type Input struct {
 	BasePath string
 	// the value to match search against
 	Value string
+	// TODO: implement search keys content
+	SearchKeysContent bool
 }
 
 type Output struct {
 	Matches []string
 }
 
-type Searcher[C ConsulClient, M Matcher] interface {
+type Searcher[C consul.ConsulClient, M Matcher] interface {
 	Search(i *Input) (*Output, error)
 }
 
-type DefaultSearcher[C ConsulClient, M Matcher] struct {
-	Client     ConsulClient
+type DefaultSearcher[C consul.ConsulClient, M Matcher] struct {
+	Client     consul.ConsulClient
 	Comparator Matcher
 }
 
@@ -31,8 +34,8 @@ func NewSearchInput(value string, basePath string) *Input {
 	}
 }
 
-func NewSearcher[C ConsulClient, Comp Matcher](c ConsulClient, m Matcher) Searcher[ConsulClient, Matcher] {
-	return &DefaultSearcher[ConsulClient, Matcher]{
+func NewSearcher[C consul.ConsulClient, Comp Matcher](c consul.ConsulClient, m Matcher) Searcher[consul.ConsulClient, Matcher] {
+	return &DefaultSearcher[consul.ConsulClient, Matcher]{
 		Client:     c,
 		Comparator: m,
 	}

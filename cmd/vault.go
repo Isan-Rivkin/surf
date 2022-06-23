@@ -97,7 +97,7 @@ func init() {
 	prefix = vaultCmd.PersistentFlags().StringP("prefix", "p", "", "$mount/prefix inside the mount to search in")
 	parallel = vaultCmd.PersistentFlags().IntP("threads", "t", 10, "parallel search number")
 
-	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "defaullt output is web urls to click on and go to the browser UI")
+	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "default output is web urls to click on and go to the browser UI")
 
 	vaultCmd.MarkPersistentFlagRequired("query")
 }
