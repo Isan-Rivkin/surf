@@ -22,7 +22,19 @@ func (client *ConsulClient) List(prefix string) (c.KVPairs, error) {
 }
 
 func (client *ConsulClient) GetConsulAddr() string {
+	if client.config.Datacenter == "" {
+		return c.DefaultConfig().Address
+	}
 	return fmt.Sprintf("%s://consul.service.%s.consul:8500", client.config.Scheme, client.config.Datacenter)
+}
+
+func (client *ConsulClient) GetConsulDatacenter() string {
+	if len(client.config.Datacenter) == 0 {
+		dc, _ := client.client.Catalog().Datacenters()
+		return dc[0]
+	} else {
+		return client.config.Datacenter
+	}
 }
 
 func NewClient(address string, datacenter string) *ConsulClient {

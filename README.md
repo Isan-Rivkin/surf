@@ -63,7 +63,7 @@ surf config
 Search under the `scripts` path for keys ending with `.sh`
 
 ```bash
-surf consul --prefix scripts --query "sh$"
+surf consul --prefix scripts --query "\.fish$" --output-url=false
 ```
 
 # Install 

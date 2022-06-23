@@ -48,6 +48,11 @@ var consulCmd = &cobra.Command{
 
 		client := runConsulDefaultAuth()
 		consulAddress := client.GetConsulAddr()
+
+		if *consulDatacenter == "" {
+			*consulDatacenter = client.GetConsulDatacenter()
+		}
+
 		log.WithFields(log.Fields{
 			"address":      consulAddress,
 			"base_path":    *consulQuery,
