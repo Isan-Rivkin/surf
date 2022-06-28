@@ -8,7 +8,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 
 ## Find Results in seconds! 
 
-![image info](./docs/surf-flow2.png)
+![image info](./docs/surf-flow.png)
 
 # Supported Platforms
 
