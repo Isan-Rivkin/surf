@@ -20,7 +20,8 @@ import (
 	"os"
 	"path/filepath"
 
-	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
+	search "github.com/isan-rivkin/surf/lib/search"
+	vaultSearch "github.com/isan-rivkin/surf/lib/search/vaultsearch"
 	"github.com/isan-rivkin/surf/lib/vault"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -58,11 +59,11 @@ var vaultCmd = &cobra.Command{
 		}).Info("starting search")
 
 		m := search.NewDefaultRegexMatcher()
-		s := search.NewRecursiveSearcher[search.VC, search.Matcher](client, m)
-		output, err := s.Search(search.NewSearchInput(*query, basePath, *parallel))
+		s := vaultSearch.NewRecursiveSearcher[vaultSearch.VC, search.Matcher](client, m)
+		output, err := s.Search(vaultSearch.NewSearchInput(*query, basePath, *parallel))
 
 		if err != nil {
-			panic(err)
+			log.Panicf("failed searching vault %s", err.Error())
 		}
 
 		if output != nil {

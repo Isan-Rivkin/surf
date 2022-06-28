@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/isan-rivkin/surf/lib/awsu"
-	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
+	search "github.com/isan-rivkin/surf/lib/search"
 	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -112,6 +112,11 @@ var acmCmd = &cobra.Command{
 		})
 
 		tui.GetLoader().Stop()
+
+		if err != nil {
+			log.Panicf("failed filtering certificates %s", err.Error())
+		}
+
 		certs := result.Certificates
 		sort.SliceStable(certs, func(i, j int) bool {
 			c1 := certs[i]
@@ -138,8 +143,7 @@ var acmCmd = &cobra.Command{
 
 			// date expiration
 
-			expireDays := notAfter.Sub(time.Now()).Hours() / 24
-
+			expireDays := time.Until(notAfter).Hours() / 24
 			// status pretty output consolidation
 			validationMethodsMapper := map[string]bool{}
 			validationStatusMapper := map[string]bool{}

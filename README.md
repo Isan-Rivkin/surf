@@ -6,13 +6,17 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 
 ![image info](./docs/xs-logo.png)
 
+## Find Results in seconds! 
+
+![image info](./docs/surf-flow.png)
+
 # Supported Platforms
 
-- [x] [Vault](https://www.vaultproject.io/)
+- [x] [Hashicorp Vault](https://www.vaultproject.io/)
 - [X] [AWS Route53](https://github.com/Isan-Rivkin/route53-cli)
 - [X] [AWS ACM](https://aws.amazon.com/certificate-manager/)
+- [X] [Hashicorp Consul KV](https://www.consul.io/docs/dynamic-app-config/kv)
 - [ ] Kubernetes - TODO  
-- [ ] Consul - TODO
 
 # AWS Route53 Usage 
 
@@ -60,10 +64,16 @@ surf config
 
 # Hashicorp Consul Usage
 
+Search all keys containing the substring `server` 
+
+```bash
+surf consul -q "server"
+```
+
 Search under the `scripts` path for keys ending with `.sh`
 
 ```bash
-surf consul --prefix scripts --query "\.fish$" --output-url=false
+surf consul --prefix scripts --query "\.sh$"
 ```
 
 # Install 
@@ -102,7 +112,7 @@ go run main.go
 
 ## Authentication Methods 
 
-- [x] Vault - LDAP 
+- [x] Vault - LDAP (run `$surf config` )
 - [x] AWS - via profile on `~/.aws/credentials file`
 - [x] Consul - None
 

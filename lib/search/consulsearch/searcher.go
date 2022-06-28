@@ -1,8 +1,10 @@
 package consulsearch
 
 import (
+	"fmt"
+
 	consul "github.com/isan-rivkin/surf/lib/consul"
-	log "github.com/sirupsen/logrus"
+	common "github.com/isan-rivkin/surf/lib/search"
 )
 
 type Input struct {
@@ -18,13 +20,13 @@ type Output struct {
 	Matches []string
 }
 
-type Searcher[C consul.ConsulClient, M Matcher] interface {
+type Searcher[C consul.ConsulClient, M common.Matcher] interface {
 	Search(i *Input) (*Output, error)
 }
 
-type DefaultSearcher[C consul.ConsulClient, M Matcher] struct {
+type DefaultSearcher[C consul.ConsulClient, M common.Matcher] struct {
 	Client     consul.ConsulClient
-	Comparator Matcher
+	Comparator common.Matcher
 }
 
 func NewSearchInput(value string, basePath string) *Input {
@@ -34,8 +36,8 @@ func NewSearchInput(value string, basePath string) *Input {
 	}
 }
 
-func NewSearcher[C consul.ConsulClient, Comp Matcher](c consul.ConsulClient, m Matcher) Searcher[consul.ConsulClient, Matcher] {
-	return &DefaultSearcher[consul.ConsulClient, Matcher]{
+func NewSearcher[C consul.ConsulClient, Comp common.Matcher](c consul.ConsulClient, m common.Matcher) Searcher[consul.ConsulClient, common.Matcher] {
+	return &DefaultSearcher[consul.ConsulClient, common.Matcher]{
 		Client:     c,
 		Comparator: m,
 	}
@@ -45,8 +47,7 @@ func (s *DefaultSearcher[CC, Matcher]) Search(i *Input) (*Output, error) {
 	pairs, err := s.Client.List(i.BasePath)
 
 	if err != nil {
-		log.Warnf("Could not list all keys under prefix %s", i.BasePath)
-		return nil, err
+		return nil, fmt.Errorf("failed listing all keys under the prefix %s - %s", i.BasePath, err.Error())
 	}
 
 	matches := []string{}
