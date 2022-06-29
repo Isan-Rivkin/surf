@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	AppVersion = "1.3.1"
+	AppVersion = "1.4.0"
 	AppName    = "surf"
 )
 
@@ -50,6 +50,14 @@ var rootCmd = &cobra.Command{
 	// Run: func(cmd *cobra.Command, args []string) {
 
 	// },
+}
+
+func getDefaultProfileEnvVar() string {
+	profile := os.Getenv("AWS_PROFILE")
+	if profile != "" {
+		return profile
+	}
+	return "default"
 }
 
 func getEnvOrOverride(flagVal *string, envName string) *string {
