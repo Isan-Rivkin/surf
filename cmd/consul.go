@@ -77,16 +77,10 @@ Pattern matching against keys in Hasicorp Consul
 
 		tui.GetLoader().Start("searching consul", "", "green")
 
-		//pairs, err := client.List(*consulPrefix)
-
-		// if err != nil {
-		// 	log.WithError(err).Fatalf("failed listing all keys under the prefix %s", *consulPrefix)
-		// }
-
 		input := search.NewSearchInput(*consulQuery, *consulPrefix)
 
 		m := common.NewDefaultRegexMatcher()
-		s := search.NewSearcher[consul.ConsulClient, common.Matcher](client, m)
+		s := search.NewSearcher[consul.Client, common.Matcher](client, m)
 		output, err := s.Search(input)
 
 		tui.GetLoader().Stop()
@@ -129,13 +123,13 @@ Pattern matching against keys in Hasicorp Consul
 	},
 }
 
-func runConsulDefaultAuth() consul.ConsulClient {
+func runConsulDefaultAuth() consul.Client {
 	if *consulAddr == "" {
 		*consulAddr = os.Getenv("CONSUL_HTTP_ADDR")
 	}
 
 	client := consul.NewClient(*consulAddr, *consulDatacenter)
-	return *client
+	return client
 }
 
 func init() {

@@ -7,12 +7,21 @@ import (
 	c "github.com/hashicorp/consul/api"
 )
 
+type Client interface {
+	List(prefix string) (c.KVPairs, error)
+	GetSchemeType() string
+	GetConsulAddr() string
+	GetConsulUIBaseAddr() (string, error)
+	GetCurrentDatacenter() (string, error)
+	ListDatacenters() ([]string, error)
+}
+
 type ConsulClient struct {
 	client *c.Client
 	config *c.Config
 }
 
-func NewClient(address string, datacenter string) *ConsulClient {
+func NewClient(address string, datacenter string) Client {
 	config := c.Config{
 		Address:    address,
 		Datacenter: datacenter,
