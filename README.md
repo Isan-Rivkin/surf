@@ -157,3 +157,8 @@ No Data is collected it is purely [github.com](https://github.com/Isan-Rivkin/su
 # How it Works 
 
 ![image info](./docs/surf-flow.png)
+
+# Contributors 
+
+* @AliRamberg  
+* @Isan-Rivkin
