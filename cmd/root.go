@@ -52,6 +52,14 @@ var rootCmd = &cobra.Command{
 	// },
 }
 
+func getDefaultProfileEnvVar() string {
+	profile := os.Getenv("AWS_PROFILE")
+	if profile != "" {
+		return profile
+	}
+	return "default"
+}
+
 func getEnvOrOverride(flagVal *string, envName string) *string {
 	v := viper.GetString(envName)
 	if v != "" && *flagVal == "" {
