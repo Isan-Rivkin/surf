@@ -22,7 +22,7 @@ import (
 	consul "github.com/isan-rivkin/surf/lib/consul"
 	common "github.com/isan-rivkin/surf/lib/search"
 	search "github.com/isan-rivkin/surf/lib/search/consulsearch"
-	tui "github.com/isan-rivkin/surf/printer"
+	printer "github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -31,6 +31,7 @@ var (
 	consulDatacenter *string
 	consulPrefix     *string
 	consulQuery      *string
+	consulAddr       *string
 	consulWebOutput  *bool
 	consulFilterKV   *bool
 )
@@ -38,9 +39,12 @@ var (
 // consulCmd represents the consul command
 var consulCmd = &cobra.Command{
 	Use:   "consul",
-	Short: "pattern matching against keys in Consul",
+	Short: "pattern matching against keys in Hasicorp Consul",
 	Long: `
-	- The CONSUL_HTTP_ADDR envrionment variable is required to run this command
+Pattern matching against keys in Hasicorp Consul
+
+	- Consul address taken from  CONSUL_HTTP_ADDR or via --address
+
 	$surf consul -q "user=\w+\.\w+"
 	$surf consul -q "AWS_SECRET_ACCESS_KEY"
 	$surf consul -q ldap -p ops -d op-us-west-2 --output-url=false
@@ -49,8 +53,10 @@ var consulCmd = &cobra.Command{
 		if !*consulFilterKV {
 			log.Fatal("for now only key-value search is supported for consul")
 		}
+		tui := buildTUI()
 
 		client := runConsulDefaultAuth()
+		consulUiBaseAddr, uiAddrErr := client.GetConsulUIBaseAddr()
 		consulAddress := client.GetConsulAddr()
 
 		if *consulDatacenter == "" {
@@ -69,36 +75,72 @@ var consulCmd = &cobra.Command{
 			"outputWebURL": *consulWebOutput,
 		}).Info("starting search")
 
+		tui.GetLoader().Start("searching consul", "", "green")
+
+		//pairs, err := client.List(*consulPrefix)
+
+		// if err != nil {
+		// 	log.WithError(err).Fatalf("failed listing all keys under the prefix %s", *consulPrefix)
+		// }
+
+		input := search.NewSearchInput(*consulQuery, *consulPrefix)
+
 		m := common.NewDefaultRegexMatcher()
 		s := search.NewSearcher[consul.ConsulClient, common.Matcher](client, m)
-		output, err := s.Search(search.NewSearchInput(*consulQuery, *consulPrefix))
+		output, err := s.Search(input)
+
+		tui.GetLoader().Stop()
 
 		if err != nil {
 			log.WithError(err).Fatal("error while searching for keys")
 		}
 
-		if *consulWebOutput {
+		if *consulWebOutput && uiAddrErr == nil {
 			for _, key := range output.Matches {
-				webUrl := consul.GenerateWebURL(consulAddress, *consulDatacenter, key)
-				fmt.Println(tui.FmtURL(webUrl))
-
+				webUrl := consul.GenerateKVWebURL(consulUiBaseAddr, key)
+				fmt.Println(printer.FmtURL(webUrl))
 			}
+
+			labelsOrder := []string{"Total", "Address", "Datacenter"}
+			summary := map[string]string{
+				"Matches #":  fmt.Sprintf("%d", len(output.Matches)),
+				"Address":    consulAddress,
+				"Datacenter": *consulDatacenter,
+			}
+
+			if *consulPrefix != "" {
+				summary["Prefix"] = *consulPrefix
+				labelsOrder = append(labelsOrder, "Prefix")
+			}
+			if *consulQuery != "" {
+				summary["Query"] = *consulQuery
+				labelsOrder = append(labelsOrder, "Query")
+			}
+
+			tui.GetTable().PrintInfoBox(summary, labelsOrder)
 		} else {
 			for i, key := range output.Matches {
 				fmt.Printf("%d. %s\n", i, key)
+			}
+			if uiAddrErr != nil {
+				log.WithError(uiAddrErr).Error("Not Displaying Link to UI, failed building address UI")
 			}
 		}
 	},
 }
 
 func runConsulDefaultAuth() consul.ConsulClient {
-	consulAddr := os.Getenv("CONSUL_HTTP_ADDR")
-	client := consul.NewClient(consulAddr, *consulDatacenter)
+	if *consulAddr == "" {
+		*consulAddr = os.Getenv("CONSUL_HTTP_ADDR")
+	}
+
+	client := consul.NewClient(*consulAddr, *consulDatacenter)
 	return *client
 }
 
 func init() {
 	rootCmd.AddCommand(consulCmd)
+	consulAddr = consulCmd.PersistentFlags().String("address", "", "consul address to use, default is CONSUL_HTTP_ADDR")
 	consulDatacenter = consulCmd.PersistentFlags().StringP("datacenter", "d", "", "for cross region specify data center or default will be used")
 	consulQuery = consulCmd.PersistentFlags().StringP("query", "q", "", "search query regex supported")
 	consulPrefix = consulCmd.PersistentFlags().StringP("prefix", "p", "/", "the prefix the search query starts from")

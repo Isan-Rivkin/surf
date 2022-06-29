@@ -12,6 +12,18 @@ type ConsulClient struct {
 	config *c.Config
 }
 
+func NewClient(address string, datacenter string) *ConsulClient {
+	config := c.Config{
+		Address:    address,
+		Datacenter: datacenter,
+	}
+	client, _ := c.NewClient(&config)
+	return &ConsulClient{
+		client: client,
+		config: &config,
+	}
+}
+
 func (client *ConsulClient) List(prefix string) (c.KVPairs, error) {
 	kv := client.client.KV()
 	query := c.QueryOptions{}
@@ -22,11 +34,35 @@ func (client *ConsulClient) List(prefix string) (c.KVPairs, error) {
 	return pairs, nil
 }
 
+// http or https scheme type
+func (client *ConsulClient) GetSchemeType() string {
+	return client.config.Scheme
+}
+
 func (client *ConsulClient) GetConsulAddr() string {
-	if client.config.Datacenter == "" {
-		return c.DefaultConfig().Address
+	return client.config.Address
+}
+
+func (client *ConsulClient) GetConsulUIBaseAddr() (string, error) {
+	dc, err := client.GetCurrentDatacenter()
+
+	if err != nil {
+		return "", fmt.Errorf("failed getting datacenter to construct consul ui base address - %s", err.Error())
 	}
-	return fmt.Sprintf("%s://consul.service.%s.consul:8500", client.config.Scheme, client.config.Datacenter)
+
+	addr := client.config.Address
+
+	if !strings.HasPrefix(addr, client.GetSchemeType()) {
+		addr = client.config.Scheme + "://" + addr
+	}
+
+	uiBaseUrl := fmt.Sprintf("%s/ui", addr)
+
+	if dc != "" {
+		uiBaseUrl = fmt.Sprintf("%s/%s", uiBaseUrl, dc)
+	}
+
+	return uiBaseUrl, nil
 }
 
 func (client *ConsulClient) GetCurrentDatacenter() (string, error) {
@@ -52,6 +88,9 @@ func (client *ConsulClient) GetCurrentDatacenter() (string, error) {
 		return "", fmt.Errorf("GetCurrentDatacenter - no key Datacenter in response %v", conf["Datacenter"])
 	}
 
+	// cache dc for future requests
+	client.config.Datacenter = dc
+
 	return dc, nil
 }
 
@@ -59,23 +98,6 @@ func (client *ConsulClient) ListDatacenters() ([]string, error) {
 	return client.client.Catalog().Datacenters()
 }
 
-func NewClient(address string, datacenter string) *ConsulClient {
-	config := c.Config{
-		Address:    address,
-		Datacenter: datacenter,
-	}
-	client, _ := c.NewClient(&config)
-	return &ConsulClient{
-		client: client,
-		config: &config,
-	}
-}
-
-func GenerateWebURL(address string, datacenter string, key string) string {
-	// clickable url will not work without a protocol in all terminals
-	if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
-		address = fmt.Sprintf("http://%s", address)
-
-	}
-	return fmt.Sprintf("%s/ui/%s/kv/%s/edit", address, datacenter, key)
+func GenerateKVWebURL(uiBaseAddress, key string) string {
+	return fmt.Sprintf("%s/kv/%s/edit", uiBaseAddress, key)
 }

@@ -20,6 +20,7 @@ import (
 	"os"
 
 	v "github.com/isan-rivkin/cliversioner"
+	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -34,7 +35,6 @@ const (
 var (
 	cfgFile      string
 	verboseLevel *int
-	checkVersion *bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -52,6 +52,12 @@ var rootCmd = &cobra.Command{
 	// },
 }
 
+func buildTUI() printer.TuiController[printer.Loader, printer.Table] {
+	s := &printer.SpinnerApi{}
+	t := printer.NewTablePrinter()
+	tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
+	return tui
+}
 func getEnvOrOverride(flagVal *string, envName string) *string {
 	v := viper.GetString(envName)
 	if v != "" && *flagVal == "" {

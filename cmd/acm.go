@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/isan-rivkin/surf/lib/awsu"
 	search "github.com/isan-rivkin/surf/lib/search"
-	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -58,10 +57,7 @@ var acmCmd = &cobra.Command{
 	surf acm -q some-acm-id --filter-id
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		s := &printer.SpinnerApi{}
-		t := printer.NewTablePrinter()
-		tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
-
+		tui := buildTUI()
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
 		if err != nil {
