@@ -111,6 +111,9 @@ var acmCmd = &cobra.Command{
 			return false
 		})
 
+		if err != nil {
+			log.WithError(err).Fatal("failed listing acm certificates")
+		}
 		tui.GetLoader().Stop()
 		certs := result.Certificates
 		sort.SliceStable(certs, func(i, j int) bool {
