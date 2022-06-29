@@ -52,12 +52,23 @@ var rootCmd = &cobra.Command{
 	// },
 }
 
+
 func buildTUI() printer.TuiController[printer.Loader, printer.Table] {
 	s := &printer.SpinnerApi{}
 	t := printer.NewTablePrinter()
 	tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
 	return tui
 }
+
+func getDefaultProfileEnvVar() string {
+	profile := os.Getenv("AWS_PROFILE")
+	if profile != "" {
+		return profile
+	}
+	return "default"
+}
+
+
 func getEnvOrOverride(flagVal *string, envName string) *string {
 	v := viper.GetString(envName)
 	if v != "" && *flagVal == "" {

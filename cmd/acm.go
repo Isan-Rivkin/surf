@@ -107,6 +107,9 @@ var acmCmd = &cobra.Command{
 			return false
 		})
 
+		if err != nil {
+			log.WithError(err).Fatal("failed listing acm certificates")
+		}
 		tui.GetLoader().Stop()
 
 		if err != nil {
@@ -195,7 +198,7 @@ var acmCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(acmCmd)
 
-	acmCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", "default", "~/.aws/credentials chosen account")
+	acmCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", getDefaultProfileEnvVar(), "~/.aws/credentials chosen account")
 	acmCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	acmCmd.PersistentFlags().StringVarP(&filterQuery, "query", "q", "", "filter query regex supported")
 

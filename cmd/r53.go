@@ -61,7 +61,7 @@ var r53Cmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(r53Cmd)
 	recordInput = r53Cmd.PersistentFlags().StringP("record", "q", "", "target record to find in R53, wildcard supported")
-	r53Cmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", "default", "~/.aws/credentials chosen account")
+	r53Cmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", getDefaultProfileEnvVar(), "~/.aws/credentials chosen account")
 	r53Cmd.PersistentFlags().BoolVar(&muteR53Logs, "mute-logs", false, "if flag set then logs from route53-cli sdk will be muted")
 	r53Cmd.PersistentFlags().BoolVar(&skipNSVerification, "ns-skip", false, "if set then nameservers will not be verified against the hosted zone result")
 	maxDepth := 3
