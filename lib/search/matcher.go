@@ -1,4 +1,4 @@
-package vaultsearch
+package search
 
 import (
 	"regexp"

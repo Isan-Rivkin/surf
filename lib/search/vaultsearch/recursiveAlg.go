@@ -6,15 +6,17 @@ import (
 
 	"github.com/isan-rivkin/surf/lib/vault"
 	log "github.com/sirupsen/logrus"
+	s "github.com/isan-rivkin/surf/lib/search"
+	
 )
 
-type RecursiveSearcher[C VC, M Matcher] struct {
+type RecursiveSearcher[C VC, M s.Matcher] struct {
 	Client     VC
-	Comparator Matcher
+	Comparator s.Matcher
 }
 
-func NewRecursiveSearcher[C VC, Comp Matcher](c VC, m Matcher) Searcher[VC, Matcher] {
-	return &RecursiveSearcher[VC, Matcher]{
+func NewRecursiveSearcher[C VC, Comp s.Matcher](c VC, m s.Matcher) Searcher[VC, s.Matcher] {
+	return &RecursiveSearcher[VC, s.Matcher]{
 		Client:     c,
 		Comparator: m,
 	}

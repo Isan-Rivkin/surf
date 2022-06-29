@@ -20,7 +20,8 @@ import (
 	"os"
 	"path/filepath"
 
-	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
+	search "github.com/isan-rivkin/surf/lib/search"
+	vaultSearch "github.com/isan-rivkin/surf/lib/search/vaultsearch"
 	"github.com/isan-rivkin/surf/lib/vault"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -37,7 +38,7 @@ var (
 // vaultCmd represents the vault command
 var vaultCmd = &cobra.Command{
 	Use:   "vault",
-	Short: "pattern match again keys in Valut",
+	Short: "pattern matching against keys in Vault",
 	Long: `
 	$surf vault -q aws -m backend-secrets/prod  -t 15
 	$surf vault -q aws -m 'user_.*pro' 
@@ -58,11 +59,11 @@ var vaultCmd = &cobra.Command{
 		}).Info("starting search")
 
 		m := search.NewDefaultRegexMatcher()
-		s := search.NewRecursiveSearcher[search.VC, search.Matcher](client, m)
-		output, err := s.Search(search.NewSearchInput(*query, basePath, *parallel))
+		s := vaultSearch.NewRecursiveSearcher[vaultSearch.VC, search.Matcher](client, m)
+		output, err := s.Search(vaultSearch.NewSearchInput(*query, basePath, *parallel))
 
 		if err != nil {
-			panic(err)
+			log.Panicf("failed searching vault %s", err.Error())
 		}
 
 		if output != nil {
@@ -97,7 +98,7 @@ func init() {
 	prefix = vaultCmd.PersistentFlags().StringP("prefix", "p", "", "$mount/prefix inside the mount to search in")
 	parallel = vaultCmd.PersistentFlags().IntP("threads", "t", 10, "parallel search number")
 
-	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "defaullt output is web urls to click on and go to the browser UI")
+	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "default output is web urls to click on and go to the browser UI")
 
 	vaultCmd.MarkPersistentFlagRequired("query")
 }

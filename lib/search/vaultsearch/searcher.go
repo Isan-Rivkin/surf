@@ -3,10 +3,9 @@ package vaultsearch
 import (
 	"math"
 
+	s "github.com/isan-rivkin/surf/lib/search"
 	"github.com/isan-rivkin/surf/lib/vault"
 )
-
-func TEST() {}
 
 type VC vault.Client[vault.Authenticator]
 
@@ -39,6 +38,6 @@ func NewSearchInput(val, basePath string, parallel int) *Input {
 	}
 }
 
-type Searcher[C VC, M Matcher] interface {
+type Searcher[C VC, M s.Matcher] interface {
 	Search(i *Input) (*Output, error)
 }

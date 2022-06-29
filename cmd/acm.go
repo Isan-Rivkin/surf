@@ -24,8 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/isan-rivkin/surf/lib/awsu"
-	search "github.com/isan-rivkin/surf/lib/search/vaultsearch"
-	"github.com/isan-rivkin/surf/printer"
+	search "github.com/isan-rivkin/surf/lib/search"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -58,10 +57,7 @@ var acmCmd = &cobra.Command{
 	surf acm -q some-acm-id --filter-id
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		s := &printer.SpinnerApi{}
-		t := printer.NewTablePrinter()
-		tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
-
+		tui := buildTUI()
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
 		if err != nil {
@@ -115,6 +111,11 @@ var acmCmd = &cobra.Command{
 			log.WithError(err).Fatal("failed listing acm certificates")
 		}
 		tui.GetLoader().Stop()
+
+		if err != nil {
+			log.Panicf("failed filtering certificates %s", err.Error())
+		}
+
 		certs := result.Certificates
 		sort.SliceStable(certs, func(i, j int) bool {
 			c1 := certs[i]
@@ -141,8 +142,7 @@ var acmCmd = &cobra.Command{
 
 			// date expiration
 
-			expireDays := notAfter.Sub(time.Now()).Hours() / 24
-
+			expireDays := time.Until(notAfter).Hours() / 24
 			// status pretty output consolidation
 			validationMethodsMapper := map[string]bool{}
 			validationStatusMapper := map[string]bool{}
