@@ -61,13 +61,13 @@ var acmCmd = &cobra.Command{
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
 		if err != nil {
-			log.Panicf("failed creating session in AWS %s", err.Error())
+			log.Fatalf("failed creating session in AWS %s", err.Error())
 		}
 
 		acmClient, err := awsu.NewACM(auth)
 
 		if err != nil {
-			log.Panicf("failed creating ACM client %s", err.Error())
+			log.Fatalf("failed creating ACM client %s", err.Error())
 		}
 
 		api := awsu.NewAcmClient(acmClient)
@@ -107,13 +107,10 @@ var acmCmd = &cobra.Command{
 			return false
 		})
 
-		if err != nil {
-			log.WithError(err).Fatal("failed listing acm certificates")
-		}
 		tui.GetLoader().Stop()
 
 		if err != nil {
-			log.Panicf("failed filtering certificates %s", err.Error())
+			log.WithError(err).Fatal("failed listing acm certificates")
 		}
 
 		certs := result.Certificates
