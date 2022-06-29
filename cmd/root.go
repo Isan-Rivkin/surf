@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	AppVersion = "1.4.1"
+	AppVersion = "1.4.2"
 	AppName    = "surf"
 )
 
@@ -52,7 +52,6 @@ var rootCmd = &cobra.Command{
 	// },
 }
 
-
 func buildTUI() printer.TuiController[printer.Loader, printer.Table] {
 	s := &printer.SpinnerApi{}
 	t := printer.NewTablePrinter()
@@ -67,7 +66,6 @@ func getDefaultProfileEnvVar() string {
 	}
 	return "default"
 }
-
 
 func getEnvOrOverride(flagVal *string, envName string) *string {
 	v := viper.GetString(envName)

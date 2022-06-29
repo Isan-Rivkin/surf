@@ -63,7 +63,7 @@ var vaultCmd = &cobra.Command{
 		output, err := s.Search(vaultSearch.NewSearchInput(*query, basePath, *parallel))
 
 		if err != nil {
-			log.Panicf("failed searching vault %s", err.Error())
+			log.Fatalf("failed searching vault %s", err.Error())
 		}
 
 		if output != nil {
