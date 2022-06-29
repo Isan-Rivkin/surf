@@ -2,6 +2,7 @@ package consul
 
 import (
 	"fmt"
+	"strings"
 
 	c "github.com/hashicorp/consul/api"
 )
@@ -28,13 +29,34 @@ func (client *ConsulClient) GetConsulAddr() string {
 	return fmt.Sprintf("%s://consul.service.%s.consul:8500", client.config.Scheme, client.config.Datacenter)
 }
 
-func (client *ConsulClient) GetConsulDatacenter() string {
-	if len(client.config.Datacenter) == 0 {
-		dc, _ := client.client.Catalog().Datacenters()
-		return dc[0]
-	} else {
-		return client.config.Datacenter
+func (client *ConsulClient) GetCurrentDatacenter() (string, error) {
+	// if previously set
+	if client.config.Datacenter != "" {
+		return client.config.Datacenter, nil
 	}
+	// fetch from agent info
+	info, err := client.client.Agent().Self()
+	if err != nil {
+		return "", nil
+	}
+
+	conf, exist := info["Config"]
+
+	if !exist {
+		return "", fmt.Errorf("GetCurrentDatacenter - no key Config in response %v", info)
+	}
+
+	dc, ok := conf["Datacenter"].(string)
+
+	if !ok {
+		return "", fmt.Errorf("GetCurrentDatacenter - no key Datacenter in response %v", conf["Datacenter"])
+	}
+
+	return dc, nil
+}
+
+func (client *ConsulClient) ListDatacenters() ([]string, error) {
+	return client.client.Catalog().Datacenters()
 }
 
 func NewClient(address string, datacenter string) *ConsulClient {
@@ -49,7 +71,11 @@ func NewClient(address string, datacenter string) *ConsulClient {
 	}
 }
 
-// Clickable URLs influenced of the termLink library https://github.com/savioxavier/termlink/blob/master/termlink.go#L165
-func GetKeyURL(address string, datacenter string, key string) string {
-	return fmt.Sprintf("\x1b]8;;%s/ui/%s/kv/%s/edit\x07%s\x1b]8;;\x07", address, datacenter, key, key)
+func GenerateWebURL(address string, datacenter string, key string) string {
+	// clickable url will not work without a protocol in all terminals
+	if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
+		address = fmt.Sprintf("http://%s", address)
+
+	}
+	return fmt.Sprintf("%s/ui/%s/kv/%s/edit", address, datacenter, key)
 }
