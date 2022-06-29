@@ -128,7 +128,10 @@ func runConsulDefaultAuth() consul.Client {
 		*consulAddr = os.Getenv("CONSUL_HTTP_ADDR")
 	}
 
-	client := consul.NewClient(*consulAddr, *consulDatacenter)
+	client, err := consul.NewClient(*consulAddr, *consulDatacenter)
+	if err != nil {
+		log.WithError(err).Fatal("failed creating consul client")
+	}
 	return client
 }
 

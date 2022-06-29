@@ -21,16 +21,19 @@ type ConsulClient struct {
 	config *c.Config
 }
 
-func NewClient(address string, datacenter string) Client {
+func NewClient(address string, datacenter string) (Client, error) {
 	config := c.Config{
 		Address:    address,
 		Datacenter: datacenter,
 	}
-	client, _ := c.NewClient(&config)
+	client, err := c.NewClient(&config)
+	if err != nil {
+		return nil, err
+	}
 	return &ConsulClient{
 		client: client,
 		config: &config,
-	}
+	}, err
 }
 
 func (client *ConsulClient) List(prefix string) (c.KVPairs, error) {
