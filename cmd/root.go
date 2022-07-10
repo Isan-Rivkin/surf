@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 
 	v "github.com/isan-rivkin/cliversioner"
 	"github.com/isan-rivkin/surf/printer"
@@ -56,6 +57,14 @@ func buildTUI() printer.TuiController[printer.Loader, printer.Table] {
 	s := &printer.SpinnerApi{}
 	t := printer.NewTablePrinter()
 	tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		sig := <-c
+		log.WithField("signal", sig).Debug("shutting down gracefully")
+		tui.GetLoader().Stop()
+		os.Exit(0)
+	}()
 	return tui
 }
 

@@ -71,7 +71,7 @@ var acmCmd = &cobra.Command{
 		}
 
 		api := awsu.NewAcmClient(acmClient)
-		parallel := 20
+		parallel := 30
 		m := search.NewDefaultRegexMatcher()
 
 		tui.GetLoader().Start("searching acm", "", "green")

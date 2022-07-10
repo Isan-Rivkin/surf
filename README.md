@@ -11,9 +11,10 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 
 # Supported Platforms
 
-- [x] [Hashicorp Vault](https://www.vaultproject.io/)
-- [X] [AWS Route53](https://github.com/Isan-Rivkin/route53-cli)
+- [X] [AWS Route53 and Targets](https://github.com/Isan-Rivkin/route53-cli)
 - [X] [AWS ACM](https://aws.amazon.com/certificate-manager/)
+- [X] [AWS S3](https://aws.amazon.com/s3/)
+- [x] [Hashicorp Vault](https://www.vaultproject.io/)
 - [X] [Hashicorp Consul KV](https://www.consul.io/docs/dynamic-app-config/kv)
 - [ ] Kubernetes - TODO  
 
@@ -23,6 +24,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 - [Usage Examples](#usage-examples)
   * [AWS Route53 Usage](#aws-route53-usage)
   * [AWS ACM Usage](#aws-acm-usage)
+  * [AWS S3 Usage](#aws-s3-usage)
   * [Hashicorp Vault Usage](#hashicorp-vault-usage)
   * [Hashicorp Consul Usage](#hashicorp-consul-usage)
 - [Install](#install)
@@ -68,6 +70,28 @@ Example search: certificate attached to a loab balancer:
 
 ```bash
 surf acm -q 's:elasticloadbalancing:us-west-2:123:loadbalancer/app/alb' --filter-used-by
+```
+
+## AWS S3 Usage 
+
+Search inside S3 Buckets and Keys in AWS. 
+
+Example: Find all keys containing `logs` in all buckets containing the name `prod-bucket`:
+
+```bash 
+surf s3  -q 'logs' -b 'prod-bucket'
+```
+
+Example: find all keys containng `house` with prefix key `my`
+
+```
+surf s3 --prefix my -q house -b my-bucket
+```
+
+Example: find all keys ending with `.json` and use non-default AWS profile:
+
+```
+surf s3 -q '\.json$' -b bucket-prefix -p my-aws-profile 
 ```
 
 ## Hashicorp Vault Usage 
