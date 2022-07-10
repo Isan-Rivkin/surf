@@ -64,7 +64,7 @@ var s3Cmd = &cobra.Command{
 		s3Client, err := awsu.NewS3(auth)
 
 		if err != nil {
-			log.WithError(err).Fatalf("failed creating S3 client %s")
+			log.WithError(err).Fatalf("failed creating S3 client")
 		}
 
 		api := awsu.NewS3Client(s3Client)
