@@ -4,10 +4,9 @@ import (
 	"math"
 	"sync"
 
+	s "github.com/isan-rivkin/surf/lib/search"
 	"github.com/isan-rivkin/surf/lib/vault"
 	log "github.com/sirupsen/logrus"
-	s "github.com/isan-rivkin/surf/lib/search"
-	
 )
 
 type RecursiveSearcher[C VC, M s.Matcher] struct {
@@ -85,7 +84,7 @@ func (s *RecursiveSearcher[VC, Matcher]) Search(i *Input) (*Output, error) {
 	}
 
 	poolSize := int(math.Min(float64(len(nodes)), float64(i.Prallel)))
-	log.WithField("parallel", poolSize).Info("parallel pool size")
+	log.WithField("parallel", poolSize).Debug("parallel pool size")
 
 	nodeChunks := SplitIntoNChunks(nodes, poolSize)
 
@@ -99,7 +98,7 @@ func (s *RecursiveSearcher[VC, Matcher]) Search(i *Input) (*Output, error) {
 				log.Debug("closing channel!")
 				break
 			} else {
-				log.Info("parsed chunk result of size ", len(nodesChunk))
+				log.Debug("parsed chunk result of size ", len(nodesChunk))
 				result = append(result, nodesChunk...)
 			}
 		}
@@ -150,7 +149,7 @@ func (s *RecursiveSearcher[VC, Matcher]) expandFolders(nodes []*vault.Node) ([]*
 
 	for _, node := range nodes {
 
-		log.WithField("root_path", node.GetFullPath()).Info("searching...")
+		log.WithField("root_path", node.GetFullPath()).Debug("searching...")
 		if err := s.expandSingleFolder(node, result); err != nil {
 			return nil, err
 		}

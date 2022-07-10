@@ -69,6 +69,9 @@ var s3Cmd = &cobra.Command{
 
 		api := awsu.NewS3Client(s3Client)
 		parallel := 30
+
+		bucketName = *getEnvOrOverride(&bucketName, EnvKeyS3DefaultBucket)
+
 		input := search.NewSearchInput(bucketName, keyPrefix, filterQuery, parallel, *allowAllBuckets)
 		m := common.NewDefaultRegexMatcher()
 		s := search.NewSearcher[awsu.S3API, common.Matcher](api, m)

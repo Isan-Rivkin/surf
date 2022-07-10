@@ -23,6 +23,7 @@ import (
 	search "github.com/isan-rivkin/surf/lib/search"
 	vaultSearch "github.com/isan-rivkin/surf/lib/search/vaultsearch"
 	"github.com/isan-rivkin/surf/lib/vault"
+	printer "github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -44,7 +45,7 @@ var vaultCmd = &cobra.Command{
 	$surf vault -q aws -m 'user_.*pro' 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-
+		tui := buildTUI()
 		mount := getEnvOrOverride(mount, EnvKeyVaultDefaultMount)
 		prefix := getEnvOrOverride(prefix, EnvKeyVaultDefaultPrefix)
 
@@ -60,7 +61,12 @@ var vaultCmd = &cobra.Command{
 
 		m := search.NewDefaultRegexMatcher()
 		s := vaultSearch.NewRecursiveSearcher[vaultSearch.VC, search.Matcher](client, m)
+
+		tui.GetLoader().Start("searching vault", "", "green")
+
 		output, err := s.Search(vaultSearch.NewSearchInput(*query, basePath, *parallel))
+
+		tui.GetLoader().Stop()
 
 		if err != nil {
 			log.Fatalf("failed searching vault %s", err.Error())
@@ -70,7 +76,7 @@ var vaultCmd = &cobra.Command{
 			for _, i := range output.Matches {
 				path := i.GetFullPath()
 				if *outputWebURL {
-					fmt.Println(vault.PathToWebURL(client.GetVaultAddr(), path))
+					fmt.Println(printer.FmtURL(vault.PathToWebURL(client.GetVaultAddr(), path)))
 				} else {
 					fmt.Println(path)
 				}

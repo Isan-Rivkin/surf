@@ -157,6 +157,7 @@ const (
 	EnvVarPrefix             string = "SURF"
 	EnvKeyVaultDefaultPrefix string = "VAULT_DEFAULT_PREFIX"
 	EnvKeyVaultDefaultMount  string = "VAULT_DEFAULT_MOUNT"
+	EnvKeyS3DefaultBucket    string = "S3_DEFAULT_MOUNT"
 	EnvVersionCheckOptout    string = "VERSION_CHECK"
 )
 
@@ -175,6 +176,10 @@ var confEnvVars = []struct {
 	{
 		Value:       EnvVersionCheckOptout,
 		Description: "if set true the tool will skip latest version check from github.com",
+	},
+	{
+		Value:       EnvKeyS3DefaultBucket,
+		Description: "if set this bucket will be searched by default",
 	},
 }
 

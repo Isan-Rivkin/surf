@@ -94,6 +94,12 @@ Example: find all keys ending with `.json` and use non-default AWS profile:
 surf s3 -q '\.json$' -b bucket-prefix -p my-aws-profile 
 ```
 
+Optional: Configure a default bucket name (same as `--bucket` flag) to start search from (any regex pattern): 
+
+```bash
+export SURF_S3_DEFAULT_MOUNT=<my-bucket-pattern>
+```
+
 ## Hashicorp Vault Usage 
 
 Search the query `aws` in Vault: 
