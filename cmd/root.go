@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 
 	v "github.com/isan-rivkin/cliversioner"
 	"github.com/isan-rivkin/surf/printer"
@@ -28,7 +29,7 @@ import (
 )
 
 const (
-	AppVersion = "1.4.2"
+	AppVersion = "1.5.0"
 	AppName    = "surf"
 )
 
@@ -56,6 +57,14 @@ func buildTUI() printer.TuiController[printer.Loader, printer.Table] {
 	s := &printer.SpinnerApi{}
 	t := printer.NewTablePrinter()
 	tui := printer.NewPrinter[printer.Loader, printer.Table](s, t)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		sig := <-c
+		log.WithField("signal", sig).Debug("shutting down gracefully")
+		tui.GetLoader().Stop()
+		os.Exit(0)
+	}()
 	return tui
 }
 
@@ -148,6 +157,7 @@ const (
 	EnvVarPrefix             string = "SURF"
 	EnvKeyVaultDefaultPrefix string = "VAULT_DEFAULT_PREFIX"
 	EnvKeyVaultDefaultMount  string = "VAULT_DEFAULT_MOUNT"
+	EnvKeyS3DefaultBucket    string = "S3_DEFAULT_MOUNT"
 	EnvVersionCheckOptout    string = "VERSION_CHECK"
 )
 
@@ -166,6 +176,10 @@ var confEnvVars = []struct {
 	{
 		Value:       EnvVersionCheckOptout,
 		Description: "if set true the tool will skip latest version check from github.com",
+	},
+	{
+		Value:       EnvKeyS3DefaultBucket,
+		Description: "if set this bucket will be searched by default",
 	},
 }
 

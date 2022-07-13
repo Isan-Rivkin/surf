@@ -55,6 +55,7 @@ var optsToHandlers = map[string]func() error{
 	"Vault: set default mount path to start search from": getEnvConfigOutput(EnvKeyVaultDefaultMount, "enter default search mount"),
 	"List all stored keychain details":                   listAllKeychainDetails,
 	"Opt-Out from latest version check at github.com":    getEnvConfigOutput(EnvVersionCheckOptout, "type 'false' to opt-out"),
+	"S3: set default bucket name to start search from":   getEnvConfigOutput(EnvKeyS3DefaultBucket, "enter default bucket name (regex pattern)"),
 	"exit": func() error {
 		os.Exit(0)
 		return nil
