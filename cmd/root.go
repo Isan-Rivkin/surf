@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 
 	v "github.com/isan-rivkin/cliversioner"
 	"github.com/isan-rivkin/surf/printer"
@@ -74,6 +75,25 @@ func getDefaultProfileEnvVar() string {
 		return profile
 	}
 	return "default"
+}
+
+func getAppEnvVarStr(envName string) string {
+	return viper.GetString(envName)
+}
+
+func getAppEnvVarStrSlice(envName string) []string {
+	strVal := viper.GetStringSlice(envName)
+	if len(strVal) == 1 {
+		return strings.Split(strVal[0], ",")
+	}
+	return strVal
+}
+
+func getEnvStrSliceOrOverride(flagVal *[]string, envName string) []string {
+	if flagVal != nil && len(*flagVal) == 0 {
+		return getAppEnvVarStrSlice(envName)
+	}
+	return *flagVal
 }
 
 func getEnvOrOverride(flagVal *string, envName string) *string {
@@ -159,6 +179,14 @@ const (
 	EnvKeyVaultDefaultMount  string = "VAULT_DEFAULT_MOUNT"
 	EnvKeyS3DefaultBucket    string = "S3_DEFAULT_MOUNT"
 	EnvVersionCheckOptout    string = "VERSION_CHECK"
+	EnvElasticsearchURL      string = "ELASTICSEARCH_URL"
+	EnvElasticsearchUsername string = "ELASTICSEARCH_USERNAME"
+	EnvElasticsearchPwd      string = "ELASTICSEARCH_PASSWORD"
+	EnvElasticsearchToken    string = "ELASTICSEARCH_TOKEN"
+	EnvElasticsearchIndexes  string = "ELASTICSEARCH_INDEXES"
+	EnvLogzIOToken           string = "LOGZ_IO_TOKEN"
+	EnvLogzIOURL             string = "LOGZ_IO_URL"
+	EnvLogzIOSubAccountIDs   string = "LOGZ_IO_ACCOUNT_IDS"
 )
 
 var confEnvVars = []struct {
@@ -180,6 +208,38 @@ var confEnvVars = []struct {
 	{
 		Value:       EnvKeyS3DefaultBucket,
 		Description: "if set this bucket will be searched by default",
+	},
+	{
+		Value:       EnvElasticsearchURL,
+		Description: "if set for elastic command will be used, will override standard ELASTICSEARCH_URL if set",
+	},
+	{
+		Value:       EnvElasticsearchUsername,
+		Description: "if set will be used for authentication with elasticsearch (must add password)",
+	},
+	{
+		Value:       EnvElasticsearchPwd,
+		Description: "if set will be used for authentication with elasticsearch (must add username)",
+	},
+	{
+		Value:       EnvElasticsearchToken,
+		Description: "if set will be used for authentication, if exist with name/password conflict will use token",
+	},
+	{
+		Value:       EnvElasticsearchIndexes,
+		Description: "command separated list of indexes to search for in elasticsearch",
+	},
+	{
+		Value:       EnvLogzIOToken,
+		Description: "logz.io token, must have permissions to search in sub-accounts and list accounts",
+	},
+	{
+		Value:       EnvLogzIOURL,
+		Description: "logz.io url, check https://docs.logz.io/user-guide/accounts/account-region.html for more info",
+	},
+	{
+		Value:       EnvLogzIOSubAccountIDs,
+		Description: "logz.io sub-account ids tp search in comma-separated",
 	},
 }
 

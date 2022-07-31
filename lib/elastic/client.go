@@ -13,6 +13,15 @@ type SearchRequest struct {
 	TrackTotalHits bool
 }
 
+func NewSearchRequest(body io.Reader, indexes []string, trackTotalHits bool) *SearchRequest {
+	return &SearchRequest{
+		Pretty:         true,
+		Body:           body,
+		Indexes:        indexes,
+		TrackTotalHits: trackTotalHits,
+	}
+}
+
 func (sq *SearchRequest) ToOpenSearchReq() *opensearchapi.SearchRequest {
 	r := &opensearchapi.SearchRequest{
 		Body:        sq.Body,
@@ -28,7 +37,9 @@ type SearchResponse struct {
 }
 
 func NewOSResponse(res *opensearchapi.Response) *SearchResponse {
-	return &SearchResponse{}
+	return &SearchResponse{
+		RawResponse: res,
+	}
 }
 
 type ESClient interface {

@@ -33,6 +33,9 @@ func (cb *ConfigBuilder) WithBasicAuthToken(token string) *ConfigBuilder {
 }
 
 func (cb *ConfigBuilder) WithHeader(k, v string) *ConfigBuilder {
+	if cb.headers == nil {
+		cb.headers = http.Header{}
+	}
 	cb.headers[k] = append(cb.headers[k], v)
 	return cb
 }
@@ -68,7 +71,7 @@ func (cb *ConfigBuilder) Build() *osc.Config {
 	conf := &osc.Config{}
 
 	// set transport
-	if cb.trans != nil {
+	if cb.trans == nil {
 		cb.trans = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // For testing only. Use certificate for validation.
 		}
