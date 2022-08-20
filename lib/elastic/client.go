@@ -3,6 +3,7 @@ package elastic
 import (
 	"io"
 
+	"github.com/Jeffail/gabs/v2"
 	opensearchapi "github.com/opensearch-project/opensearch-go/v2/opensearchapi"
 )
 
@@ -34,6 +35,7 @@ func (sq *SearchRequest) ToOpenSearchReq() *opensearchapi.SearchRequest {
 
 type SearchResponse struct {
 	RawResponse *opensearchapi.Response
+	Container   *gabs.Container
 }
 
 func NewOSResponse(res *opensearchapi.Response) *SearchResponse {

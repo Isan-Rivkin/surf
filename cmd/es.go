@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/isan-rivkin/surf/lib/common"
 	es "github.com/isan-rivkin/surf/lib/elastic"
+	esSearch "github.com/isan-rivkin/surf/lib/search/essearch"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -38,6 +40,10 @@ var esCmd = &cobra.Command{
 	Short: "Search in Elasticsearch / Opensearch database",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		from, to, _ := common.GetTimeFromNow("100d")
+		tq := esSearch.BuildTimeRangeFilter("@timestamp", "strict_date_optional_time", &from, &to)
+		esSearch.NewBoolQuery([]string{*esQuery}, nil, nil, "Asia/Jerusalem", 10, tq)
+		return
 		esAddr = getEnvOrOverride(esAddr, EnvElasticsearchURL)
 		// hirearchy --address flag > SURF_ELASTICSEARCH_URL > ELASTICSEARCH_URL
 		if esAddr == nil || *esAddr == "" {
@@ -78,7 +84,33 @@ var esCmd = &cobra.Command{
 			log.WithError(err).Error("failed searching elastic")
 		}
 
-		fmt.Println(res.RawResponse)
+		hits, err := res.GetHits()
+		if err != nil {
+			log.WithError(err).Fatal("issue with hit")
+		}
+		fmt.Printf("hits : %d\n", len(hits))
+		for _, h := range hits {
+			id, _ := h.GetID()
+			fmt.Printf("%s \n", id)
+			//keys, _ := h.GetSourceKeys()
+			// for _, k := range keys {
+			// 	fmt.Printf("\t\t -> %s\n", k)
+			// }
+			js, _ := h.GetSourceAsJson()
+			fmt.Printf("\t\t -> %s\n", js)
+		}
+		//fmt.Println(res.RawResponse)
+
+		// accessor, err := common.NewJsonAccessorFromResponse(res.RawResponse.Body)
+		// if err != nil {
+		// 	log.WithError(err).Fatal("failed parsing es response")
+		// }
+
+		// keys := accessor.Keys("hits.hits")
+		// for _, k := range keys {
+		// 	fmt.Printf("- %s\n", k)
+		// }
+
 	},
 }
 

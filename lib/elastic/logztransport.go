@@ -2,6 +2,7 @@ package elastic
 
 import (
 	"crypto/tls"
+	"fmt"
 
 	"net/http"
 
@@ -22,11 +23,13 @@ type LogzioTransport struct {
 	accountIds             []string
 	underlyingTs           http.RoundTripper
 	validSearchQueryParams map[string]bool
+	dayOffset              int
 }
 
-func NewLogzioTransport(infoPath, searchPath string, accountIds []string, underlyingTs http.RoundTripper) ActiveModifierTransport {
+func NewLogzioTransport(infoPath, searchPath string, accountIds []string, dayOffset int, underlyingTs http.RoundTripper) ActiveModifierTransport {
 
 	return &LogzioTransport{
+		dayOffset:    dayOffset,
 		infoPath:     infoPath,
 		searchPath:   searchPath,
 		accountIds:   accountIds,
@@ -74,6 +77,11 @@ func (t *LogzioTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			for _, accId := range t.accountIds {
 				log.Debugf("adding param accoutId=%s", accId)
 				q.Add("accountIds", accId)
+			}
+
+			if t.dayOffset > 0 {
+				log.Debugf("adding param dayOffset=%d", t.dayOffset)
+				q.Add("dayOffset", fmt.Sprintf("%d", t.dayOffset))
 			}
 
 			req.URL.RawQuery = q.Encode()

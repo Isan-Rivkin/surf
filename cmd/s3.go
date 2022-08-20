@@ -131,11 +131,11 @@ var s3Cmd = &cobra.Command{
 		}
 
 		for _, t := range tables {
-			tui.GetTable().PrintInfoBox(t, labelsOrder)
+			tui.GetTable().PrintInfoBox(t, labelsOrder, false)
 		}
 
 		if getLogLevelFromVerbosity() >= log.DebugLevel {
-			tui.GetTable().PrintInfoBox(summaryTable, labelsOrderSummary)
+			tui.GetTable().PrintInfoBox(summaryTable, labelsOrderSummary, false)
 		}
 	},
 }

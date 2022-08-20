@@ -2,6 +2,7 @@ package elastic
 
 import (
 	"context"
+	"fmt"
 
 	ops "github.com/opensearch-project/opensearch-go"
 )
@@ -19,6 +20,9 @@ func (osc *OpenSearchClient) Search(sReq *SearchRequest) (*SearchResponse, error
 	resp, err := sReq.ToOpenSearchReq().Do(context.Background(), osc.client)
 	if err != nil {
 		return nil, err
+	}
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed searching from elastic %s", resp.String())
 	}
 	return NewOSResponse(resp), nil
 }

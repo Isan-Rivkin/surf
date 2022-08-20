@@ -13,3 +13,8 @@ func FmtURL(url string) string {
 	// transformer := text.NewURLTransformer()
 	// return transformer(url)
 }
+
+func PrettyJson(js string) string {
+	t := text.NewJSONTransformer("", "  ")
+	return t(js)
+}

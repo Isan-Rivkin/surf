@@ -20,29 +20,53 @@ import (
 	"strings"
 
 	es "github.com/isan-rivkin/surf/lib/elastic"
+	esSearch "github.com/isan-rivkin/surf/lib/search/essearch"
+	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	listSubAccounts  *bool
-	logzToken        *string
-	logzAddr         *string
-	logzQuery        *string
-	logzAccountIds   *[]string
-	logzAccountNames *[]string
+	listSubAccounts      *bool
+	logzToken            *string
+	logzAddr             *string
+	logzQuery            *string
+	logzNotQuery         *string
+	logzTimeFmt          *string
+	logzWindowTime       *string
+	logzWindowOffsetTime *int
+	logzTimeRangefield   *string
+	logzAccountIds       *[]string
+	logzAccountNames     *[]string
+	logzLimitSize        *int
 )
 
 // logzCmd represents the logz command
 var logzCmd = &cobra.Command{
 	Use:   "logz",
 	Short: "Search in logz.io (elasticsearch)",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		// account ids
-		//*logzAccountIds = getEnvStrSliceOrOverride(logzAccountIds, EnvLogzIOSubAccountIDs)
-		var err error
+	Long: `
 
+Search docs containing the word 'exception' with limit size 200 
+
+	surf logz -q 'exception' -l 200
+	
+Search docs containing the word 'somewhintg' across ALL sub-accounts matching production/automation
+
+	surf logz -q 'something' --acc production --acc automation 
+
+Search docs containing the word 'production', field errorCode with value Access* and are not containing 'dummy' 
+
+	surf logz -q 'production AND errorCode:Access*' --nq 'dummy'
+
+Search docs across 10 day window with 2 days offset (e.g all matches between 12 days ago until 2 days ago)
+
+	surf logz -o 2 -w 10d -q 'some pattern'
+	
+	`,
+	Run: func(cmd *cobra.Command, args []string) {
+		tui := buildTUI()
+		var err error
 		// address
 		logzAddr = getEnvOrOverride(logzAddr, EnvLogzIOURL)
 		if logzAddr == nil || *logzAddr == "" {
@@ -77,24 +101,96 @@ var logzCmd = &cobra.Command{
 			confBuilder.WithColoredLogger()
 		}
 
-		confBuilder.WithTransport(es.NewLogzioTransport("/v2/whoami", "/v1/search", *logzAccountIds, nil))
+		confBuilder.WithTransport(es.NewLogzioTransport("/v2/whoami", "/v1/search", *logzAccountIds, *logzWindowOffsetTime, nil))
 
 		conf := confBuilder.WithURL(*logzAddr).Build()
 		client, err := es.NewOpenSearchClient(*conf)
+
 		if err != nil {
-			log.WithError(err).Fatal("failed creating logzio client")
+			log.WithError(err).Fatal("failed creating logz-io client")
 		}
-		q, err := es.NewQueryBuilder().WithKQL(*logzQuery).Build()
+
+		offsetTimeStr := ""
+
+		if *logzWindowOffsetTime > 0 {
+			offsetTimeStr = fmt.Sprintf("%dd", *logzWindowOffsetTime)
+		}
+
+		//q, err := es.NewQueryBuilder().WithKQL(*logzQuery).Build()
+		q, jsonQuery, err := esSearch.NewQueryBuilder().
+			WithMustContain(*logzQuery).
+			WithMustNotContain(*logzNotQuery).
+			WithTimeRangeWindow(*logzWindowTime, offsetTimeStr, *logzTimeRangefield, *logzTimeFmt).
+			WithSize(uint64(*logzLimitSize)).
+			BuildBoolQuery()
+
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating search query %s", *logzQuery)
 		}
+
+		log.Debugf("query %s", string(jsonQuery))
+
 		res, err := client.Search(es.NewSearchRequest(q, nil, true))
 		if err != nil || res == nil {
 			log.WithError(err).Error("failed searching logzio")
 		}
-
-		fmt.Println(res.RawResponse)
+		printLogzOutput(res, tui)
 	},
+}
+
+func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.Loader, printer.Table]) {
+	hits, err := res.GetHits()
+	if err != nil {
+		log.Fatalf("failed gettings hits result %s", err.Error())
+	}
+
+	hitLabels := []string{"ID", "Score"}
+	if *logzTimeRangefield != "" {
+		hitLabels = append(hitLabels, "Time")
+	}
+
+	for _, hit := range hits {
+		hitTable := map[string]string{}
+		if id, ok := hit.GetID(); ok {
+			hitTable["ID"] = id
+		}
+		if score, ok := hit.GetScore(); ok {
+			hitTable["Score"] = fmt.Sprintf("%v", score)
+		}
+		if *logzTimeRangefield != "" {
+			if ts, ok := hit.GetSourceStrVal(*logzTimeRangefield); ok {
+				hitTable["Time"] = ts
+			}
+		}
+		tui.GetTable().PrintInfoBox(hitTable, hitLabels, true)
+		if source, ok := hit.GetSourceAsJson(); ok {
+			fmt.Println(printer.PrettyJson(source))
+		}
+
+	}
+
+	// summary table
+	total, err := res.GetHitsCount()
+	if err != nil {
+		log.Debugf("failed getting hits count %s", err.Error())
+		total = 0
+	}
+
+	maxScoreStr := ""
+	maxScore, err := res.GetMaxScore()
+	if err == nil {
+		maxScoreStr = fmt.Sprintf("%v", maxScore)
+	} else {
+		log.Debugf("failed getting max score %s", err.Error())
+	}
+
+	summaryLabels := []string{"Max Score", "Total Hits #", "Hits (Limit) #"}
+	summary := map[string]string{
+		"Total Hits #":   fmt.Sprintf("%d", total),
+		"Hits (Limit) #": fmt.Sprintf("%d", len(hits)),
+		"Max Score":      maxScoreStr,
+	}
+	tui.GetTable().PrintInfoBox(summary, summaryLabels, false)
 }
 
 func listLogzIOAccounts() (*es.LogzAccountsListResponse, error) {
@@ -131,11 +227,16 @@ func getLogzIOAccountIDs() ([]string, error) {
 }
 func init() {
 	listSubAccounts = logzCmd.Flags().Bool("list-accounts", false, "list all sub account and ids to use for --sub-account or env var to search in")
-	logzAccountNames = logzCmd.PersistentFlags().StringArray("acc", []string{}, "sub-account names instead of ids to search in (must have list account permission) --acc QA --acc 'Audit Logs'")
+	logzAccountNames = logzCmd.PersistentFlags().StringArray("acc", []string{}, "sub-account names contains value instead of ids to search in (must have list account permission) --acc QA --acc 'Audit Logs'")
 	logzToken = logzCmd.PersistentFlags().StringP("token", "t", "", "logz.io token must have access to search in sub accounts (optional list accounts)")
 	logzAddr = logzCmd.PersistentFlags().String("address", "", "logz.io api endpoint, if not set will use standard SURF_LOGZ_IO_URL env")
 	logzQuery = logzCmd.PersistentFlags().StringP("query", "q", "", "kql or free text search query (example: field:value AND free-text)")
-	logzAccountIds = logzCmd.PersistentFlags().StringArrayP("sub-account", "g", []string{}, "sub-account ids to search in (must have permission) -a 1234 -a 4567")
-
+	logzAccountIds = logzCmd.PersistentFlags().StringArrayP("sub-account", "g", []string{}, "sub-account ids to search in (must have permission) -g 1234 -g 4567")
+	logzNotQuery = logzCmd.PersistentFlags().String("nq", "", "kql or free text search query that must NOT match (bool query)")
+	logzTimeFmt = logzCmd.PersistentFlags().String("time-fmt", "strict_date_optional_time", "default logz.io time, see range query time format in elastic docs")
+	logzWindowTime = logzCmd.PersistentFlags().StringP("window", "w", "", "last time window from now (2d, 50m, 3h units) default last 2 days")
+	logzWindowOffsetTime = logzCmd.PersistentFlags().IntP("days-offset", "o", 0, "days offset of last result window i.e return results max from 2 days ago")
+	logzTimeRangefield = logzCmd.PersistentFlags().String("time-key", "@timestamp", "the field to use for time range query's")
+	logzLimitSize = logzCmd.PersistentFlags().IntP("limit", "l", 10, "limit size of documents to return")
 	rootCmd.AddCommand(logzCmd)
 }

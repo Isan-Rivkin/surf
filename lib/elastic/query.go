@@ -6,16 +6,6 @@ import (
 	"io"
 )
 
-// logz
-//{
-//	"query": {
-//	  "multi_match" : {
-//		"query":    "isan.rivkin"
-//	  }
-//	}
-//}
-// logz
-//{"query":{"term":{"someField":{"value":"some val"}}}}
 type QueryBuilder interface {
 	WithKQL(query string) QueryBuilder
 	Build() (io.Reader, error)

@@ -3,6 +3,8 @@ module github.com/isan-rivkin/surf
 go 1.18
 
 require (
+	github.com/Jeffail/gabs/v2 v2.6.1
+	github.com/aquasecurity/esquery v0.2.0
 	github.com/aws/aws-sdk-go v1.42.27
 	github.com/aws/aws-sdk-go-v2/config v1.15.13
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.1
@@ -16,6 +18,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.0.5
 	github.com/magiconair/properties v1.8.5
 	github.com/manifoldco/promptui v0.9.0
+	github.com/nathan-fiscaletti/consolesize-go v0.0.0-20220204101620-317176b6684d
 	github.com/opensearch-project/opensearch-go v1.1.0
 	github.com/opensearch-project/opensearch-go/v2 v2.0.0
 	github.com/sirupsen/logrus v1.8.1
@@ -48,6 +51,7 @@ require (
 	github.com/danieljoos/wincred v1.1.0 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.0.0-20211216131617-bbee439d559c // indirect
 	github.com/fatih/color v1.13.0 // indirect
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/godbus/dbus/v5 v5.0.6 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
