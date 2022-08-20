@@ -39,6 +39,8 @@ var (
 	logzAccountIds       *[]string
 	logzAccountNames     *[]string
 	logzLimitSize        *int
+	logzNoFmtOutput      *bool
+	logzTruncateOutput   *bool
 )
 
 // logzCmd represents the logz command
@@ -51,7 +53,7 @@ Search docs containing the word 'exception' with limit size 200
 
 	surf logz -q 'exception' -l 200
 	
-Search docs containing the word 'somewhintg' across ALL sub-accounts matching production/automation
+Search docs containing the word 'something' across ALL sub-accounts matching production/automation
 
 	surf logz -q 'something' --acc production --acc automation 
 
@@ -138,7 +140,7 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 	},
 }
 
-func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex bool, tui printer.TuiController[printer.Loader, printer.Table]) {
+func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtDoc, isTruncate bool, tui printer.TuiController[printer.Loader, printer.Table]) {
 	hits, err := res.GetHits()
 	if err != nil {
 		log.Fatalf("failed gettings hits result %s", err.Error())
@@ -171,7 +173,14 @@ func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex bool,
 		}
 		tui.GetTable().PrintInfoBox(hitTable, hitLabels, true)
 		if source, ok := hit.GetSourceAsJson(); ok {
-			fmt.Println(printer.ColorFaint(printer.PrettyJson(source)))
+			docOut := source
+			if isTruncate {
+				docOut = printer.TruncateText(docOut, 200, "")
+			}
+			if !fmtDoc && !isTruncate {
+				docOut = printer.ColorFaint(printer.PrettyJson(source))
+			}
+			fmt.Println(docOut)
 		}
 
 	}
@@ -200,7 +209,7 @@ func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex bool,
 	tui.GetTable().PrintInfoBox(summary, summaryLabels, false)
 }
 func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.Loader, printer.Table]) {
-	printEsOutput(res, *logzTimeRangefield, false, tui)
+	printEsOutput(res, *logzTimeRangefield, false, *logzNoFmtOutput, *logzTruncateOutput, tui)
 }
 
 func listLogzIOAccounts() (*es.LogzAccountsListResponse, error) {
@@ -237,6 +246,8 @@ func getLogzIOAccountIDs() ([]string, error) {
 }
 func init() {
 	listSubAccounts = logzCmd.Flags().Bool("list-accounts", false, "list all sub account and ids to use for --sub-account or env var to search in")
+	logzNoFmtOutput = logzCmd.Flags().Bool("no-fmt", false, "if true the output document will not be formatted, usually when the output is not a json formatted doc we want raw.")
+	logzTruncateOutput = logzCmd.Flags().Bool("truncate", false, "if true the output will be truncated.")
 	logzAccountNames = logzCmd.PersistentFlags().StringArray("acc", []string{}, "sub-account names contains value instead of ids to search in (must have list account permission) --acc QA --acc 'Audit Logs'")
 	logzToken = logzCmd.PersistentFlags().StringP("token", "t", "", "logz.io token must have access to search in sub accounts (optional list accounts)")
 	logzAddr = logzCmd.PersistentFlags().String("address", "", "logz.io api endpoint, if not set will use standard SURF_LOGZ_IO_URL env")

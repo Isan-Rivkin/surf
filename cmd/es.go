@@ -26,18 +26,30 @@ import (
 )
 
 var (
-	esQuery     *string
-	esToken     *string
-	esAddr      *string
-	esIndexes   *[]string
-	esLimitSize *int
+	esQuery           *string
+	esNotContainQuery *string
+	esToken           *string
+	esAddr            *string
+	esIndexes         *[]string
+	esLimitSize       *int
+	esNoFmtOutput     *bool
+	esTruncateFmt     *bool
 )
 
 // esCmd represents the es command
 var esCmd = &cobra.Command{
 	Use:   "es",
 	Short: "Search in Elasticsearch / Opensearch database",
-	Long:  ``,
+	Long: `
+
+Search docs containing the term 'api' return limit 40 results.
+
+	surf es -q 'api' -l 40
+
+Search docs containing the term 'api' with client field and 'xyz*' pattern and NOT containing the term 'staging'
+	
+	surf es -q 'api AND client:xyz*' --nq staging
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
 		esAddr = getEnvOrOverride(esAddr, EnvElasticsearchURL)
@@ -74,6 +86,7 @@ var esCmd = &cobra.Command{
 		//q, err := es.NewQueryBuilder().WithKQL(*esQuery).Build()
 		q, jsonQuery, err := esSearch.NewQueryBuilder().
 			WithMustContain(*esQuery).
+			WithMustNotContain(*esNotContainQuery).
 			WithSize(uint64(*esLimitSize)).
 			BuildBoolQuery()
 
@@ -91,7 +104,7 @@ var esCmd = &cobra.Command{
 			log.WithError(err).Error("failed searching elastic")
 		}
 
-		printEsOutput(res, "", true, tui)
+		printEsOutput(res, "", true, *esNoFmtOutput, *esTruncateFmt, tui)
 	},
 }
 
@@ -120,8 +133,11 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 
 func init() {
 	esToken = esCmd.PersistentFlags().StringP("token", "t", "", "auth with token")
+	esNoFmtOutput = esCmd.Flags().Bool("no-fmt", false, "if true the output document will not be formatted, usually when the output is not a json formatted doc we want raw.")
+	esTruncateFmt = esCmd.Flags().Bool("truncate", false, "if true the output will be truncated.")
 	esAddr = esCmd.PersistentFlags().String("address", "", "elastic endpoint, if not set will use standard ELASTICSEARCH_URL / SURF_ELASTICSEARCH_URL env")
 	esQuery = esCmd.PersistentFlags().StringP("query", "q", "", "kql or free text search query (example: field:value AND free-text)")
+	esNotContainQuery = esCmd.PersistentFlags().String("nq", "", "kql or free text search query that must NOT match (bool query)")
 	esIndexes = esCmd.PersistentFlags().StringArrayP("index", "i", []string{}, "list of indexes to search -i 'index-a-*' -i index-b can be set via env SURF_ELASTICSEARCH_INDEXES='a,b'")
 	esLimitSize = esCmd.PersistentFlags().IntP("limit", "l", 10, "limit size of documents to return")
 	rootCmd.AddCommand(esCmd)

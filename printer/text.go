@@ -1,6 +1,8 @@
 package printer
 
 import (
+	"strings"
+
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
@@ -22,4 +24,14 @@ func ColorFaint(txt string) string {
 func PrettyJson(js string) string {
 	t := text.NewJSONTransformer("", "  ")
 	return t(js)
+}
+
+func TruncateText(s string, max int, delimeters string) string {
+	if max > len(s) {
+		return s
+	}
+	if delimeters == "" {
+		delimeters = " ,"
+	}
+	return s[:strings.LastIndexAny(s[:max], delimeters)] + "..."
 }
