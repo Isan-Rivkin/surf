@@ -102,6 +102,9 @@ func (sr *SearchResponse) GetHitsCount() (int, error) {
 	total, ok := accessor.GetValue[float64](obj, "hits.total")
 
 	if !ok {
+		if total, ok = accessor.GetValue[float64](obj, "hits.total.value"); ok {
+			return int(total), nil
+		}
 		return 0, nil
 	}
 	return int(total), nil

@@ -138,17 +138,19 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 	},
 }
 
-func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.Loader, printer.Table]) {
+func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex bool, tui printer.TuiController[printer.Loader, printer.Table]) {
 	hits, err := res.GetHits()
 	if err != nil {
 		log.Fatalf("failed gettings hits result %s", err.Error())
 	}
 
 	hitLabels := []string{"ID", "Score"}
-	if *logzTimeRangefield != "" {
+	if timeRangeField != "" {
 		hitLabels = append(hitLabels, "Time")
 	}
-
+	if outIndex {
+		hitLabels = append(hitLabels, "Index")
+	}
 	for _, hit := range hits {
 		hitTable := map[string]string{}
 		if id, ok := hit.GetID(); ok {
@@ -157,14 +159,19 @@ func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.L
 		if score, ok := hit.GetScore(); ok {
 			hitTable["Score"] = fmt.Sprintf("%v", score)
 		}
-		if *logzTimeRangefield != "" {
-			if ts, ok := hit.GetSourceStrVal(*logzTimeRangefield); ok {
+		if timeRangeField != "" {
+			if ts, ok := hit.GetSourceStrVal(timeRangeField); ok {
 				hitTable["Time"] = ts
+			}
+		}
+		if outIndex {
+			if idx, ok := hit.GetIndex(); ok {
+				hitTable["Index"] = idx
 			}
 		}
 		tui.GetTable().PrintInfoBox(hitTable, hitLabels, true)
 		if source, ok := hit.GetSourceAsJson(); ok {
-			fmt.Println(printer.PrettyJson(source))
+			fmt.Println(printer.ColorFaint(printer.PrettyJson(source)))
 		}
 
 	}
@@ -191,6 +198,9 @@ func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.L
 		"Max Score":      maxScoreStr,
 	}
 	tui.GetTable().PrintInfoBox(summary, summaryLabels, false)
+}
+func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.Loader, printer.Table]) {
+	printEsOutput(res, *logzTimeRangefield, false, tui)
 }
 
 func listLogzIOAccounts() (*es.LogzAccountsListResponse, error) {

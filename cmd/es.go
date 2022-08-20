@@ -17,10 +17,8 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
-	"github.com/isan-rivkin/surf/lib/common"
 	es "github.com/isan-rivkin/surf/lib/elastic"
 	esSearch "github.com/isan-rivkin/surf/lib/search/essearch"
 	log "github.com/sirupsen/logrus"
@@ -28,10 +26,11 @@ import (
 )
 
 var (
-	esQuery   *string
-	esToken   *string
-	esAddr    *string
-	esIndexes *[]string
+	esQuery     *string
+	esToken     *string
+	esAddr      *string
+	esIndexes   *[]string
+	esLimitSize *int
 )
 
 // esCmd represents the es command
@@ -40,10 +39,7 @@ var esCmd = &cobra.Command{
 	Short: "Search in Elasticsearch / Opensearch database",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		from, to, _ := common.GetTimeFromNow("100d")
-		tq := esSearch.BuildTimeRangeFilter("@timestamp", "strict_date_optional_time", &from, &to)
-		esSearch.NewBoolQuery([]string{*esQuery}, nil, nil, "Asia/Jerusalem", 10, tq)
-		return
+		tui := buildTUI()
 		esAddr = getEnvOrOverride(esAddr, EnvElasticsearchURL)
 		// hirearchy --address flag > SURF_ELASTICSEARCH_URL > ELASTICSEARCH_URL
 		if esAddr == nil || *esAddr == "" {
@@ -75,7 +71,18 @@ var esCmd = &cobra.Command{
 			log.WithError(err).Fatal("failed creating elastic  client")
 		}
 
-		q, err := es.NewQueryBuilder().WithKQL(*esQuery).Build()
+		//q, err := es.NewQueryBuilder().WithKQL(*esQuery).Build()
+		q, jsonQuery, err := esSearch.NewQueryBuilder().
+			WithMustContain(*esQuery).
+			WithSize(uint64(*esLimitSize)).
+			BuildBoolQuery()
+
+		if err != nil {
+			log.WithError(err).Fatalf("failed creating search query %s", *logzQuery)
+		}
+
+		log.Debugf("query %s", string(jsonQuery))
+
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating search query %s", *esQuery)
 		}
@@ -84,33 +91,7 @@ var esCmd = &cobra.Command{
 			log.WithError(err).Error("failed searching elastic")
 		}
 
-		hits, err := res.GetHits()
-		if err != nil {
-			log.WithError(err).Fatal("issue with hit")
-		}
-		fmt.Printf("hits : %d\n", len(hits))
-		for _, h := range hits {
-			id, _ := h.GetID()
-			fmt.Printf("%s \n", id)
-			//keys, _ := h.GetSourceKeys()
-			// for _, k := range keys {
-			// 	fmt.Printf("\t\t -> %s\n", k)
-			// }
-			js, _ := h.GetSourceAsJson()
-			fmt.Printf("\t\t -> %s\n", js)
-		}
-		//fmt.Println(res.RawResponse)
-
-		// accessor, err := common.NewJsonAccessorFromResponse(res.RawResponse.Body)
-		// if err != nil {
-		// 	log.WithError(err).Fatal("failed parsing es response")
-		// }
-
-		// keys := accessor.Keys("hits.hits")
-		// for _, k := range keys {
-		// 	fmt.Printf("- %s\n", k)
-		// }
-
+		printEsOutput(res, "", true, tui)
 	},
 }
 
@@ -142,5 +123,6 @@ func init() {
 	esAddr = esCmd.PersistentFlags().String("address", "", "elastic endpoint, if not set will use standard ELASTICSEARCH_URL / SURF_ELASTICSEARCH_URL env")
 	esQuery = esCmd.PersistentFlags().StringP("query", "q", "", "kql or free text search query (example: field:value AND free-text)")
 	esIndexes = esCmd.PersistentFlags().StringArrayP("index", "i", []string{}, "list of indexes to search -i 'index-a-*' -i index-b can be set via env SURF_ELASTICSEARCH_INDEXES='a,b'")
+	esLimitSize = esCmd.PersistentFlags().IntP("limit", "l", 10, "limit size of documents to return")
 	rootCmd.AddCommand(esCmd)
 }

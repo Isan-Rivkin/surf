@@ -39,10 +39,8 @@ func (ja *JsonAccessor) Keys(path string) []string {
 	obj = ja.obj.Path("hits.hits")
 	//fmt.Println("nuu ", obj)
 	for _, c := range obj.Children() {
-		fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@")
 		for k, o := range c.ChildrenMap() {
 			if k == "_source" {
-				//fmt.Printf("\t ## %v\n", o.Data())
 				for sk := range o.ChildrenMap() {
 					fmt.Printf("\t\t\t %s -> %s\n", k, sk)
 				}

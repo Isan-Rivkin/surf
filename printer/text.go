@@ -14,6 +14,11 @@ func FmtURL(url string) string {
 	// return transformer(url)
 }
 
+func ColorFaint(txt string) string {
+	col := text.Colors{text.Faint}
+	return col.Sprint(txt)
+}
+
 func PrettyJson(js string) string {
 	t := text.NewJSONTransformer("", "  ")
 	return t(js)
