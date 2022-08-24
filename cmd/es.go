@@ -54,7 +54,7 @@ List All indexes
 
 	surf es --list-indexes
 
-Search in indexes 'prod-*' and 'api-*' 
+Search in indexes 'prod-*' and 'api-*' (Override SURF_ELASTICSEARCH_INDEXES)
 
 	surf es -q 'api' -i 'prod-*d' -i 'api-*'
 
