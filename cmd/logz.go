@@ -136,7 +136,7 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 		res, err := client.Search(es.NewSearchRequest(q, nil, true))
 		tui.GetLoader().Stop()
 		if err != nil || res == nil {
-			log.WithError(err).Error("failed searching logzio")
+			log.WithError(err).Fatal("failed searching logzio")
 		}
 		printLogzOutput(res, tui)
 	},

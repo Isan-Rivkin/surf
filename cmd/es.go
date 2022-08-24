@@ -50,6 +50,14 @@ Search docs containing the term 'api' return limit 40 results.
 
 	surf es -q 'api' -l 40
 
+List All indexes 
+
+	surf es --list-indexes
+
+Search in indexes 'prod-*' and 'api-*' 
+
+	surf es -q 'api' -i 'prod-*d' -i 'api-*'
+
 Search docs containing the term 'api' with client field and 'xyz*' pattern and NOT containing the term 'staging'
 	
 	surf es -q 'api AND client:xyz*' --nq staging
@@ -111,7 +119,7 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 		res, err := client.Search(es.NewSearchRequest(q, *esIndexes, true))
 		tui.GetLoader().Stop()
 		if err != nil || res == nil {
-			log.WithError(err).Error("failed searching elastic")
+			log.WithError(err).Fatal("failed searching elastic")
 		}
 
 		printEsOutput(res, "", true, *esNoFmtOutput, *esTruncateFmt, tui)
