@@ -46,4 +46,5 @@ func NewOSResponse(res *opensearchapi.Response) *SearchResponse {
 
 type ESClient interface {
 	Search(sReq *SearchRequest) (*SearchResponse, error)
+	ListIndexes() (ESIndicesResponse, error)
 }

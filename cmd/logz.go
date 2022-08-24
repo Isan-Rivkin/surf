@@ -92,7 +92,8 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 			}
 			return
 		}
-		log.Infof("logz url=%s accountIds=%v query=%s", *logzAddr, *logzAccountIds, *logzQuery)
+
+		log.Debugf("logz url=%s accountIds=%v query=%s", *logzAddr, *logzAccountIds, *logzQuery)
 		confBuilder, err := initESConfWithAuth("", "", *logzToken, isLogz)
 
 		if err != nil {
@@ -131,8 +132,9 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 		}
 
 		log.Debugf("query %s", string(jsonQuery))
-
+		tui.GetLoader().Start("searching logz-io", "", "green")
 		res, err := client.Search(es.NewSearchRequest(q, nil, true))
+		tui.GetLoader().Stop()
 		if err != nil || res == nil {
 			log.WithError(err).Error("failed searching logzio")
 		}
@@ -178,7 +180,8 @@ func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtD
 				docOut = printer.TruncateText(docOut, 200, "")
 			}
 			if !fmtDoc && !isTruncate {
-				docOut = printer.ColorFaint(printer.PrettyJson(source))
+				//docOut = printer.ColorFaint(printer.PrettyJson(source))
+				docOut = printer.PrettyJson(source)
 			}
 			fmt.Println(docOut)
 		}

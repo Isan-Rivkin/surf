@@ -17,10 +17,13 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"sort"
 
 	es "github.com/isan-rivkin/surf/lib/elastic"
 	esSearch "github.com/isan-rivkin/surf/lib/search/essearch"
+	printer "github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -34,6 +37,7 @@ var (
 	esLimitSize       *int
 	esNoFmtOutput     *bool
 	esTruncateFmt     *bool
+	esListIndexes     *bool
 )
 
 // esCmd represents the es command
@@ -60,7 +64,7 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 		}
 		*esIndexes = getEnvStrSliceOrOverride(esIndexes, EnvElasticsearchIndexes)
 
-		log.Infof("es search url=%s indexes=%v query=%s", *esAddr, *esIndexes, *esQuery)
+		log.Debugf("es search url=%s indexes=%v query=%s", *esAddr, *esIndexes, *esQuery)
 
 		if esAddr == nil || *esAddr == "" {
 			log.Fatal("no elastic address provided please use --address or environment variables docs in --help command")
@@ -83,6 +87,10 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 			log.WithError(err).Fatal("failed creating elastic  client")
 		}
 
+		if *esListIndexes {
+			displayESListIndices(client, tui)
+			return
+		}
 		//q, err := es.NewQueryBuilder().WithKQL(*esQuery).Build()
 		q, jsonQuery, err := esSearch.NewQueryBuilder().
 			WithMustContain(*esQuery).
@@ -99,13 +107,45 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating search query %s", *esQuery)
 		}
+		tui.GetLoader().Start("searching elasticsearch", "", "green")
 		res, err := client.Search(es.NewSearchRequest(q, *esIndexes, true))
+		tui.GetLoader().Stop()
 		if err != nil || res == nil {
 			log.WithError(err).Error("failed searching elastic")
 		}
 
 		printEsOutput(res, "", true, *esNoFmtOutput, *esTruncateFmt, tui)
 	},
+}
+
+func displayESListIndices(client es.ESClient, tui printer.TuiController[printer.Loader, printer.Table]) {
+	indicesRes, err := client.ListIndexes()
+	if err != nil {
+		log.WithError(err).Fatal("failed listing indexes")
+	}
+	indices, exist := indicesRes.Indices()
+	if !exist {
+		fmt.Printf("No Indices found \n")
+		return
+	}
+	table := map[string]string{}
+	var displayIndices []string
+	labels := []string{"Results"}
+	for _, idx := range indices {
+		if !idx.IsDotIndex() {
+			displayIndices = append(displayIndices, idx.GetName())
+		}
+	}
+	sort.Strings(displayIndices)
+	for i, idx := range displayIndices {
+		num := fmt.Sprintf("# %d", i+1)
+		table[num] = idx
+		labels = append(labels, num)
+	}
+
+	table["Results"] = fmt.Sprintf("User Defined %d, Internal Indexes %d", len(displayIndices), len(indices)-len(displayIndices))
+	labels = append(labels, "Name")
+	tui.GetTable().PrintInfoBox(table, labels, false)
 }
 
 func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilder, error) {
@@ -118,7 +158,6 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 	}
 
 	if isLogz && token != "" {
-
 		return confBuilder.WithHeader(es.LogzIOTokenHeader, token).WithHeader("Content-Type", "application/json"), nil
 	}
 	// if username / password provided
@@ -132,6 +171,7 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 }
 
 func init() {
+	esListIndexes = esCmd.Flags().Bool("list-indexes", false, "list all available indexes --index or env var to search in")
 	esToken = esCmd.PersistentFlags().StringP("token", "t", "", "auth with token")
 	esNoFmtOutput = esCmd.Flags().Bool("no-fmt", false, "if true the output document will not be formatted, usually when the output is not a json formatted doc we want raw.")
 	esTruncateFmt = esCmd.Flags().Bool("truncate", false, "if true the output will be truncated.")
