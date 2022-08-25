@@ -191,10 +191,10 @@ func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtD
 				docOut = printer.TruncateText(docOut, 200, "")
 			}
 			if !fmtDoc && !isTruncate {
-				//docOut = printer.ColorFaint(printer.PrettyJson(source))
 				docOut = printer.PrettyJson(source)
 			}
 			fmt.Println(docOut)
+
 		}
 
 	}
