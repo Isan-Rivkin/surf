@@ -43,7 +43,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:     AppName,
 	Short:   "Free Text Search across your infrastructure platforms via CLI.",
-	Long:    getEnvVarConfig(),
+	Long:    getEnvVarConfig(""),
 	Version: AppVersion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setLogLevel()
@@ -104,14 +104,15 @@ func getEnvOrOverride(flagVal *string, envName string) *string {
 	return flagVal
 }
 
-func getEnvVarConfig() string {
+func getEnvVarConfig(ctx string) string {
 	m := `
 	Environment Variables Available: 
 
 `
 	for _, e := range confEnvVars {
-		m += fmt.Sprintf("\t%s_%s \n\t%s\n\n", EnvVarPrefix, e.Value, e.Description)
-
+		if ctx == "" || ctx == e.Context {
+			m += fmt.Sprintf("\t%s_%s \n\t%s\n\n", EnvVarPrefix, e.Value, e.Description)
+		}
 	}
 	return m
 }
@@ -190,14 +191,17 @@ const (
 )
 
 var confEnvVars = []struct {
+	Context     string
 	Value       string
 	Description string
 }{
 	{
+		Context:     "vault",
 		Value:       EnvKeyVaultDefaultMount,
 		Description: "Mount to start the search from in Vault",
 	},
 	{
+		Context:     "vault",
 		Value:       EnvKeyVaultDefaultPrefix,
 		Description: "Prefix to start the search from in Vault appended to mount",
 	},
@@ -206,38 +210,47 @@ var confEnvVars = []struct {
 		Description: "if set true the tool will skip latest version check from github.com",
 	},
 	{
+		Context:     "s3",
 		Value:       EnvKeyS3DefaultBucket,
 		Description: "if set this bucket will be searched by default",
 	},
 	{
+		Context:     "es",
 		Value:       EnvElasticsearchURL,
 		Description: "if set for elastic command will be used, will override standard ELASTICSEARCH_URL if set",
 	},
 	{
+		Context:     "es",
 		Value:       EnvElasticsearchUsername,
 		Description: "if set will be used for authentication with elasticsearch (must add password)",
 	},
 	{
+		Context:     "es",
 		Value:       EnvElasticsearchPwd,
 		Description: "if set will be used for authentication with elasticsearch (must add username)",
 	},
 	{
+		Context:     "es",
 		Value:       EnvElasticsearchToken,
 		Description: "if set will be used for authentication, if exist with name/password conflict will use token",
 	},
 	{
+		Context:     "es",
 		Value:       EnvElasticsearchIndexes,
 		Description: "command separated list of indexes to search for in elasticsearch",
 	},
 	{
+		Context:     "logz",
 		Value:       EnvLogzIOToken,
 		Description: "logz.io token, must have permissions to search in sub-accounts and list accounts",
 	},
 	{
+		Context:     "logz",
 		Value:       EnvLogzIOURL,
 		Description: "logz.io url, check https://docs.logz.io/user-guide/accounts/account-region.html for more info",
 	},
 	{
+		Context:     "logz",
 		Value:       EnvLogzIOSubAccountIDs,
 		Description: "logz.io sub-account ids tp search in comma-separated",
 	},

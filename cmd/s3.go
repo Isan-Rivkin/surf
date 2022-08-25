@@ -51,7 +51,7 @@ var s3Cmd = &cobra.Command{
 === Regex on bucket names to search in ===
 
 	$surf s3  -q '\.json$' -b '^(prod)(.*)-public'
-	`,
+	` + getEnvVarConfig("s3"),
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
 

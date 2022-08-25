@@ -38,6 +38,7 @@ var (
 	esNoFmtOutput     *bool
 	esTruncateFmt     *bool
 	esListIndexes     *bool
+	esOutputJson      *bool
 )
 
 // esCmd represents the es command
@@ -61,7 +62,7 @@ Search in indexes 'prod-*' and 'api-*' (Override SURF_ELASTICSEARCH_INDEXES)
 Search docs containing the term 'api' with client field and 'xyz*' pattern and NOT containing the term 'staging'
 	
 	surf es -q 'api AND client:xyz*' --nq staging
-	`,
+	` + getEnvVarConfig("es"),
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
 		esAddr = getEnvOrOverride(esAddr, EnvElasticsearchURL)
@@ -122,7 +123,7 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 			log.WithError(err).Fatal("failed searching elastic")
 		}
 
-		printEsOutput(res, "", true, *esNoFmtOutput, *esTruncateFmt, tui)
+		printEsOutput(res, "", true, *esNoFmtOutput, *esTruncateFmt, *esOutputJson, tui)
 	},
 }
 
@@ -180,6 +181,7 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 
 func init() {
 	esListIndexes = esCmd.Flags().Bool("list-indexes", false, "list all available indexes --index or env var to search in")
+	esOutputJson = esCmd.Flags().Bool("json", false, "if set the output will be in JSON format (for script usage)")
 	esToken = esCmd.PersistentFlags().StringP("token", "t", "", "auth with token")
 	esNoFmtOutput = esCmd.Flags().Bool("no-fmt", false, "if true the output document will not be formatted, usually when the output is not a json formatted doc we want raw.")
 	esTruncateFmt = esCmd.Flags().Bool("truncate", false, "if true the output will be truncated.")

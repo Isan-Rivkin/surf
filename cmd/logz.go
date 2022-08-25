@@ -40,6 +40,7 @@ var (
 	logzAccountNames     *[]string
 	logzLimitSize        *int
 	logzNoFmtOutput      *bool
+	logzOutputJson       *bool
 	logzTruncateOutput   *bool
 )
 
@@ -65,7 +66,7 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 
 	surf logz -o 2 -w 10d -q 'some pattern'
 	
-	`,
+	` + getEnvVarConfig("logz"),
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
 		var err error
@@ -142,7 +143,16 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 	},
 }
 
-func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtDoc, isTruncate bool, tui printer.TuiController[printer.Loader, printer.Table]) {
+func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtDoc, isTruncate, jsonOutput bool, tui printer.TuiController[printer.Loader, printer.Table]) {
+	if jsonOutput {
+		out, err := res.GetResponseAsJson()
+		if err != nil {
+			log.Fatalf("failed gettings result as json %s", err.Error())
+		}
+		fmt.Print(out)
+		return
+	}
+
 	hits, err := res.GetHits()
 	if err != nil {
 		log.Fatalf("failed gettings hits result %s", err.Error())
@@ -174,9 +184,10 @@ func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtD
 			}
 		}
 		tui.GetTable().PrintInfoBox(hitTable, hitLabels, true)
+
 		if source, ok := hit.GetSourceAsJson(); ok {
 			docOut := source
-			if isTruncate {
+			if isTruncate && !jsonOutput {
 				docOut = printer.TruncateText(docOut, 200, "")
 			}
 			if !fmtDoc && !isTruncate {
@@ -212,7 +223,7 @@ func printEsOutput(res *es.SearchResponse, timeRangeField string, outIndex, fmtD
 	tui.GetTable().PrintInfoBox(summary, summaryLabels, false)
 }
 func printLogzOutput(res *es.SearchResponse, tui printer.TuiController[printer.Loader, printer.Table]) {
-	printEsOutput(res, *logzTimeRangefield, false, *logzNoFmtOutput, *logzTruncateOutput, tui)
+	printEsOutput(res, *logzTimeRangefield, false, *logzNoFmtOutput, *logzTruncateOutput, *logzOutputJson, tui)
 }
 
 func listLogzIOAccounts() (*es.LogzAccountsListResponse, error) {
@@ -248,6 +259,7 @@ func getLogzIOAccountIDs() ([]string, error) {
 	return *logzAccountIds, nil
 }
 func init() {
+	logzOutputJson = logzCmd.Flags().Bool("json", false, "if set the output will be in JSON format (for script usage)")
 	listSubAccounts = logzCmd.Flags().Bool("list-accounts", false, "list all sub account and ids to use for --sub-account or env var to search in")
 	logzNoFmtOutput = logzCmd.Flags().Bool("no-fmt", false, "if true the output document will not be formatted, usually when the output is not a json formatted doc we want raw.")
 	logzTruncateOutput = logzCmd.Flags().Bool("truncate", false, "if true the output will be truncated.")

@@ -43,7 +43,7 @@ var vaultCmd = &cobra.Command{
 	Long: `
 	$surf vault -q aws -m backend-secrets/prod  -t 15
 	$surf vault -q aws -m 'user_.*pro' 
-	`,
+	` + getEnvVarConfig("vault"),
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
 		mount := getEnvOrOverride(mount, EnvKeyVaultDefaultMount)

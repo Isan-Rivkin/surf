@@ -8,6 +8,7 @@ import (
 )
 
 type EsObj interface {
+	GetFullObjAsJson() (string, bool)
 	GetIndex() (string, bool)
 	GetType() (string, bool)
 	GetID() (string, bool)
@@ -23,6 +24,12 @@ type EsDoc struct {
 
 func NewEsDoc(raw *gabs.Container) EsObj {
 	return &EsDoc{raw: raw}
+}
+func (o *EsDoc) GetFullObjAsJson() (string, bool) {
+	if o.raw == nil {
+		return "", false
+	}
+	return o.raw.String(), true
 }
 
 func (o *EsDoc) GetSourceStrVal(path string) (string, bool) {
@@ -70,6 +77,7 @@ type ESResponse interface {
 	GetHitsCount() (int, error)
 	GetHits() ([]EsObj, error)
 	GetMaxScore() (float64, error)
+	GetResponseAsJson() (string, error)
 }
 
 func (sr *SearchResponse) Result() (*gabs.Container, error) {
@@ -109,7 +117,13 @@ func (sr *SearchResponse) GetHitsCount() (int, error) {
 	}
 	return int(total), nil
 }
-
+func (sr *SearchResponse) GetResponseAsJson() (string, error) {
+	obj, err := sr.Result()
+	if err != nil {
+		return "", err
+	}
+	return obj.String(), nil
+}
 func (sr *SearchResponse) GetHits() ([]EsObj, error) {
 	var result []EsObj
 	obj, err := sr.Result()
