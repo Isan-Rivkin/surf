@@ -78,6 +78,8 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 		isLogz := true
 		logzToken = getEnvOrOverride(logzToken, EnvLogzIOToken)
 
+		confBuilder, err := initESConfWithAuth("", "", *logzToken, isLogz)
+
 		*logzAccountIds, err = getLogzIOAccountIDs()
 		if err != nil {
 			log.WithError(err).Fatal("failed getting logz account ids")
@@ -86,16 +88,22 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 		if *listSubAccounts {
 			resp, err := listLogzIOAccounts()
 			if err != nil {
-				log.WithError(err).Fatal("failed listing logz-io sub accouns %s", err.Error())
+				log.WithError(err).Fatal("failed listing logz-io sub accounts")
 			}
+			labelsOrder := []string{"Name"}
+			table := map[string]string{
+				"Name": "ID",
+			}
+
 			for _, a := range resp.Accounts {
-				fmt.Printf("%s: %d\n", a.AccountName, a.AccountID)
+				labelsOrder = append(labelsOrder, a.AccountName)
+				table[a.AccountName] = fmt.Sprint(a.AccountID)
 			}
+			tui.GetTable().PrintInfoBox(table, labelsOrder, false)
 			return
 		}
 
 		log.Debugf("logz url=%s accountIds=%v query=%s", *logzAddr, *logzAccountIds, *logzQuery)
-		confBuilder, err := initESConfWithAuth("", "", *logzToken, isLogz)
 
 		if err != nil {
 			log.WithError(err).Fatal("failed initiating configuration for logz, please check auth details provided")

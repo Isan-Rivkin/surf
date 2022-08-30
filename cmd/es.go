@@ -157,6 +157,7 @@ func displayESListIndices(client es.ESClient, tui printer.TuiController[printer.
 	tui.GetTable().PrintInfoBox(table, labels, false)
 }
 
+
 func initESAuthKeyChain(confBuilder *es.ConfigBuilder, isLogz bool) (*es.ConfigBuilder, error) {
 	ns := ElasticSearchNS
 	if isLogz {
@@ -184,6 +185,7 @@ func initESAuthKeyChain(confBuilder *es.ConfigBuilder, isLogz bool) (*es.ConfigB
 	}
 
 	if hasToken && isLogz {
+		logzToken = &token 
 		return confBuilder.WithHeader(es.LogzIOTokenHeader, token).WithHeader("Content-Type", "application/json"), nil
 	} else if hasToken {
 		return confBuilder.WithBasicAuthToken(token), nil
@@ -204,6 +206,7 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 	}
 
 	if isLogz && token != "" {
+		logzToken = &token
 		return confBuilder.WithHeader(es.LogzIOTokenHeader, token).WithHeader("Content-Type", "application/json"), nil
 	}
 	// if username / password provided

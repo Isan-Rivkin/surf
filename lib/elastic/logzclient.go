@@ -64,9 +64,8 @@ func (lz *LogzHttpClient) ListTimeBasedAccounts() (*LogzAccountsListResponse, er
 	defer resp.Body.Close()
 
 	var accounts []LogzAccount
-
 	if err := json.NewDecoder(resp.Body).Decode(&accounts); err != nil {
-		return nil, fmt.Errorf("failed decoding json for list accounts in logz %s", err.Error())
+		return nil, fmt.Errorf("failed decoding json for list accounts in logz %s - %s", err.Error(), resp.Status)
 	}
 
 	return &LogzAccountsListResponse{Accounts: accounts}, nil
