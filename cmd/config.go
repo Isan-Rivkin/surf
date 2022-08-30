@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	ls "github.com/isan-rivkin/surf/lib/localstore"
 	"github.com/manifoldco/promptui"
@@ -35,9 +36,12 @@ var (
 )
 
 const (
-	unameKey  string       = "username"
-	pwdKey    string       = "password"
-	VaultLdap ls.Namespace = "vault-ldap"
+	tokenKey        string       = "token"
+	unameKey        string       = "username"
+	pwdKey          string       = "password"
+	VaultLdap       ls.Namespace = "vault-ldap"
+	ElasticSearchNS ls.Namespace = "elastic-auth"
+	LogzSearchNS    ls.Namespace = "logz-auth"
 )
 
 // configCmd represents the config command
@@ -51,8 +55,13 @@ var configCmd = &cobra.Command{
 }
 
 var optsToHandlers = map[string]func() error{
-	"Vault: store locally LDAP auth details":             setLocalstoreCredentials,
+	"Vault: store locally LDAP auth details":             func() error { return setLocalstoreCredentials(VaultLdap) },
 	"Vault: set default mount path to start search from": getEnvConfigOutput(EnvKeyVaultDefaultMount, "enter default search mount"),
+	"ElasticSearch: store locally user/password details": func() error { return setLocalstoreCredentials(ElasticSearchNS) },
+	"ElasticSearch: store locally token":                 func() error { return setLocalstoreToken(ElasticSearchNS) },
+	"ElasticSearch: clear storage":                       func() error { return clearNamespace(ElasticSearchNS) },
+	"Logz.io: store locally token":                       func() error { return setLocalstoreToken(LogzSearchNS) },
+	"Logz.io: clear storage":                             func() error { return clearNamespace(LogzSearchNS) },
 	"List all stored keychain details":                   listAllKeychainDetails,
 	"Opt-Out from latest version check at github.com":    getEnvConfigOutput(EnvVersionCheckOptout, "type 'false' to opt-out"),
 	"S3: set default bucket name to start search from":   getEnvConfigOutput(EnvKeyS3DefaultBucket, "enter default bucket name (regex pattern)"),
@@ -68,11 +77,14 @@ func runInteractiveConfigLoop() {
 		confOpts = append(confOpts, o)
 	}
 
+	sort.Strings(confOpts)
+
 	for {
 
 		prompt := promptui.Select{
-			Label: "Select an option:",
+			Label: "Select an option",
 			Items: confOpts,
+			Size:  len(confOpts)%30 + 1,
 		}
 
 		_, result, err := prompt.Run()
@@ -95,9 +107,78 @@ func runInteractiveConfigLoop() {
 
 }
 
-func setVaultAccessCredentialsValues() error {
-	if *method != "ldap" {
-		return fmt.Errorf("only ldap method supported not %s", *method)
+func checkIsTokenOrUserAuthStored(ns ls.Namespace) (bool, bool, error) {
+	var isToken bool
+	var isUserPass bool
+	var storageErr error
+
+	sm := newStoreManager()
+
+	if sm.IsNamespaceSet(ns) {
+		vals, storageErr := sm.GetValues(ns)
+
+		if storageErr != nil {
+			return isToken, isUserPass, storageErr
+		}
+
+		tokenVal, hasToken := vals[tokenKey]
+		unameVal, hasUser := vals[unameKey]
+		pwdVal, hasPwd := vals[pwdKey]
+
+		isToken = hasToken && tokenVal != ""
+		isUserPass = hasUser && unameVal != "" && hasPwd && pwdVal != ""
+	}
+	return isToken, isUserPass, storageErr
+}
+
+func clearNamespace(ns ls.Namespace) error {
+	sm := newStoreManager()
+	return sm.DeleteNamespace(ns)
+}
+
+func getAccessTokenValue(ns ls.Namespace, tokenVal string, supportedMethods map[string]bool) (string, error) {
+	if _, ok := supportedMethods[*method]; !ok {
+		return "", fmt.Errorf("only %v methods are supported. not %s", supportedMethods, *method)
+	}
+
+	if tokenVal == "" {
+
+		var token string
+		var err error
+		sm := newStoreManager()
+
+		if sm.IsNamespaceSet(ns) && !*updateLocalCredentials {
+
+			vals, err := sm.GetValues(ns)
+
+			if err != nil {
+				return "", err
+			}
+			token = vals[tokenKey]
+
+		} else {
+			token, err = getUserInteractiveToken()
+		}
+
+		if *updateLocalCredentials {
+			data := map[string]string{
+				tokenKey: token,
+				unameKey: "",
+				pwdKey:   "",
+			}
+
+			if err = saveLocalstoreData(sm, ns, data); err != nil {
+				return "", err
+			}
+		}
+		return token, err
+	}
+	return "", nil
+}
+
+func setAccessCredentialsValues(ns ls.Namespace, supportedMethods map[string]bool) error {
+	if _, ok := supportedMethods[*method]; !ok {
+		return fmt.Errorf("only %v methods are supported. not %s", supportedMethods, *method)
 	}
 
 	if *username == "" || *password == "" {
@@ -106,9 +187,9 @@ func setVaultAccessCredentialsValues() error {
 		var err error
 		sm := newStoreManager()
 
-		if sm.IsNamespaceSet(VaultLdap) && !*updateLocalCredentials {
+		if sm.IsNamespaceSet(ns) && !*updateLocalCredentials {
 
-			vals, err := sm.GetValues(VaultLdap)
+			vals, err := sm.GetValues(ns)
 
 			if err != nil {
 				return err
@@ -121,16 +202,22 @@ func setVaultAccessCredentialsValues() error {
 		}
 
 		if *updateLocalCredentials {
-			if err = saveLocalstoreCredentials(sm, name, pwd); err != nil {
+			if err = saveLocalstoreCredentials(sm, ns, name, pwd); err != nil {
 				return err
 			}
 		}
-
 		username = &name
 		password = &pwd
 		return err
 	}
 	return nil
+}
+
+func setVaultAccessCredentialsValues() error {
+	if *method != "ldap" {
+		return fmt.Errorf("only ldap method supported not %s", *method)
+	}
+	return setAccessCredentialsValues(VaultLdap, map[string]bool{"ldap": true})
 }
 
 func getEnvConfigOutput(env, label string) func() error {
@@ -152,22 +239,60 @@ func getEnvConfigOutput(env, label string) func() error {
 }
 func listAllKeychainDetails() error {
 	sm := newStoreManager()
-	result, err := sm.ListAll()
+	nsToresult, err := sm.ListAll()
 
 	if err != nil {
 		return err
 	}
+	tui := buildTUI()
+	table := map[string]string{}
+	labels := []string{}
+	for nsName, nsRes := range nsToresult {
 
-	for _, res := range result {
-		for k, v := range res {
+		if len(nsRes) > 0 {
+			fmt.Printf("")
+		}
+		prefix := string(nsName)
+		for k, v := range nsRes {
+			var val string
 			if log.GetLevel() >= log.DebugLevel {
-				fmt.Println(fmt.Sprintf("%s: %s", k, v))
+				val = v
 			} else {
-				fmt.Println(fmt.Sprintf("%s: val_len = %d", k, len(v)))
+				for i := 0; i < len(v); i++ {
+					val += "*"
+				}
 			}
+			label := prefix + "." + k
+			table[label] = val
+			labels = append(labels, label)
 		}
 	}
+	fmt.Printf("Use `-v` flag to see the actual values instead of *\n")
+	sort.Strings(labels)
+	tui.GetTable().PrintInfoBox(table, labels, false)
 	return nil
+}
+
+func getUserInteractiveToken() (string, error) {
+	validate := func(input string) error {
+		if input == "" {
+			return errors.New("no empty input allowed")
+		}
+		return nil
+	}
+	prompt := promptui.Prompt{
+		Label:    "Token",
+		Validate: validate,
+		Mask:     '*',
+	}
+
+	token, err := prompt.Run()
+
+	if err != nil {
+		log.Fatalf("Prompt failed %v\n", err)
+		return "", err
+	}
+	return token, nil
 }
 
 func getUserInteractiveCredentials() (string, string, error) {
@@ -210,12 +335,34 @@ func newStoreManager() ls.StoreManager[ls.Store] {
 
 	s := ls.NewStore(AppName)
 	sm := ls.NewStoreManager(s, map[ls.Namespace][]string{
-		VaultLdap: {unameKey, pwdKey},
+		VaultLdap:       {unameKey, pwdKey},
+		ElasticSearchNS: {tokenKey, unameKey, pwdKey},
+		LogzSearchNS:    {tokenKey},
 	})
 	return sm
 }
+func setLocalstoreToken(ns ls.Namespace) error {
+	sm := newStoreManager()
+	token, err := getUserInteractiveToken()
 
-func setLocalstoreCredentials() error {
+	if err != nil {
+		return nil
+	}
+
+	data := map[string]string{
+		tokenKey: token,
+		pwdKey:   "",
+		unameKey: "",
+	}
+
+	if err := saveLocalstoreData(sm, ns, data); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setLocalstoreCredentials(ns ls.Namespace) error {
 	sm := newStoreManager()
 	name, pwd, err := getUserInteractiveCredentials()
 
@@ -223,20 +370,25 @@ func setLocalstoreCredentials() error {
 		return nil
 	}
 
-	if err := saveLocalstoreCredentials(sm, name, pwd); err != nil {
+	if err := saveLocalstoreCredentials(sm, ns, name, pwd); err != nil {
 		return err
 	}
 
 	return nil
 }
+func saveLocalstoreData(sm ls.StoreManager[ls.Store], ns ls.Namespace, data map[string]string) error {
+	err := sm.SetNSValues(ns, data)
+	return err
+}
 
-func saveLocalstoreCredentials(sm ls.StoreManager[ls.Store], name, pwd string) error {
+func saveLocalstoreCredentials(sm ls.StoreManager[ls.Store], ns ls.Namespace, name, pwd string) error {
 
-	err := sm.SetNSValues(VaultLdap, map[string]string{
+	data := map[string]string{
 		unameKey: name,
 		pwdKey:   pwd,
-	})
-
+		tokenKey: "",
+	}
+	err := saveLocalstoreData(sm, ns, data)
 	username = &name
 	password = &pwd
 	return err

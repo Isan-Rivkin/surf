@@ -88,6 +88,10 @@ var vaultCmd = &cobra.Command{
 
 func runVaultDefaultAuth() vault.Client[vault.Authenticator] {
 	vaultAddr := os.Getenv("VAULT_ADDR")
+
+	if vaultAddr == "" {
+		log.Fatal("failed VAULT_ADDR environment variable is missing")
+	}
 	if err := setVaultAccessCredentialsValues(); err != nil {
 		log.WithError(err).Fatal("failed auth to Vault")
 	}

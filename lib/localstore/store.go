@@ -7,6 +7,7 @@ type Namespace string
 type Store interface {
 	Write(key, value string) error
 	Read(key string) (string, error)
+	ReadAndDelete(key string) (string, error)
 }
 
 func NewStore(serviceName string) Store {
@@ -34,6 +35,17 @@ func (sm *StoreManager[T]) withNs(ns Namespace, key string) string {
 	return fmt.Sprintf("%s.%s", ns, key)
 }
 
+func (sm *StoreManager[T]) DeleteNamespace(ns Namespace) error {
+	keys, exist := sm.NamespaceToKeysMapper[ns]
+	if !exist {
+		return nil
+	}
+	for _, k := range keys {
+		key := sm.withNs(ns, k)
+		_, _ = sm.Storage.ReadAndDelete(key)
+	}
+	return nil
+}
 func (sm *StoreManager[T]) GetValues(ns Namespace) (map[string]string, error) {
 
 	result := map[string]string{}
@@ -56,14 +68,13 @@ func (sm *StoreManager[T]) GetValues(ns Namespace) (map[string]string, error) {
 	return result, nil
 }
 
-func (sm *StoreManager[T]) ListAll() ([]map[string]string, error) {
-	allNsResult := []map[string]string{}
-	for ns, _ := range sm.NamespaceToKeysMapper {
+func (sm *StoreManager[T]) ListAll() (map[Namespace]map[string]string, error) {
+	allNsResult := map[Namespace]map[string]string{}
+	for ns := range sm.NamespaceToKeysMapper {
 		res, err := sm.GetValues(ns)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			allNsResult[ns] = res
 		}
-		allNsResult = append(allNsResult, res)
 	}
 	return allNsResult, nil
 }

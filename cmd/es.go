@@ -157,6 +157,43 @@ func displayESListIndices(client es.ESClient, tui printer.TuiController[printer.
 	tui.GetTable().PrintInfoBox(table, labels, false)
 }
 
+func initESAuthKeyChain(confBuilder *es.ConfigBuilder, isLogz bool) (*es.ConfigBuilder, error) {
+	ns := ElasticSearchNS
+	if isLogz {
+		ns = LogzSearchNS
+	}
+	//check if stored in keychain
+	hasToken, hasUnamePwd, err := checkIsTokenOrUserAuthStored(ns)
+	if err != nil {
+		log.WithError(err).Error("failed accessing OS keychain")
+		return nil, errors.New("no valid auth info provided please use token or username/password run --help to see more info")
+	}
+	log.Debugf("auth keychain check hasToken %t hasUnamePwd %t", hasToken, hasUnamePwd)
+	var keychainErr error
+	var token string
+	if hasToken {
+		token, keychainErr = getAccessTokenValue(ns, "", map[string]bool{"ldap": true})
+	} else if hasUnamePwd {
+		// todo: method is never used
+		keychainErr = setAccessCredentialsValues(ns, map[string]bool{"ldap": true})
+	}
+
+	if keychainErr != nil {
+		log.WithError(keychainErr).Error("failed accessing OS keychain")
+		return nil, errors.New("no valid auth info provided please use token or username/password run --help to see more info")
+	}
+
+	if hasToken && isLogz {
+		return confBuilder.WithHeader(es.LogzIOTokenHeader, token).WithHeader("Content-Type", "application/json"), nil
+	} else if hasToken {
+		return confBuilder.WithBasicAuthToken(token), nil
+	} else if hasUnamePwd {
+		return confBuilder.WithUserAuth(*username, *password), nil
+	}
+
+	return nil, fmt.Errorf("no keychain auth")
+}
+
 func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilder, error) {
 
 	confBuilder := es.NewConf()
@@ -176,7 +213,13 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 	if uname != "" && pwd != "" {
 		return confBuilder.WithUserAuth(uname, pwd), nil
 	}
-	return nil, errors.New("no valid auth credentials provided")
+
+	// nothing set
+	if confBuilder, err := initESAuthKeyChain(confBuilder, isLogz); err == nil {
+		return confBuilder, nil
+	}
+
+	return nil, errors.New("no valid auth info provided please use token or username/password run --help to see more info")
 }
 
 func init() {
