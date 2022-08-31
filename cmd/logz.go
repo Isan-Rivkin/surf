@@ -27,21 +27,22 @@ import (
 )
 
 var (
-	listSubAccounts      *bool
-	logzToken            *string
-	logzAddr             *string
-	logzQuery            *string
-	logzNotQuery         *string
-	logzTimeFmt          *string
-	logzWindowTime       *string
-	logzWindowOffsetTime *int
-	logzTimeRangefield   *string
-	logzAccountIds       *[]string
-	logzAccountNames     *[]string
-	logzLimitSize        *int
-	logzNoFmtOutput      *bool
-	logzOutputJson       *bool
-	logzTruncateOutput   *bool
+	listSubAccounts            *bool
+	logzToken                  *string
+	logzAddr                   *string
+	logzQuery                  *string
+	logzNotQuery               *string
+	logzTimeFmt                *string
+	logzWindowTime             *string
+	logzWindowOffsetTime       *int
+	logzTimeRangefield         *string
+	logzAccountIds             *[]string
+	logzAccountNames           *[]string
+	logzLimitSize              *int
+	logzNoFmtOutput            *bool
+	logzOutputJson             *bool
+	logzTruncateOutput         *bool
+	logzUpdateLocalCredentials *bool
 )
 
 // logzCmd represents the logz command
@@ -68,6 +69,9 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 	
 	` + getEnvVarConfig("logz"),
 	Run: func(cmd *cobra.Command, args []string) {
+		updateLocalCredentials = logzUpdateLocalCredentials
+		globalToken = logzToken
+
 		tui := buildTUI()
 		var err error
 		// address
@@ -79,6 +83,10 @@ Search docs across 10 day window with 2 days offset (e.g all matches between 12 
 		logzToken = getEnvOrOverride(logzToken, EnvLogzIOToken)
 
 		confBuilder, err := initESConfWithAuth("", "", *logzToken, isLogz)
+
+		if err != nil {
+			log.WithError(err).Fatal("failed initiating logz config")
+		}
 
 		*logzAccountIds, err = getLogzIOAccountIDs()
 		if err != nil {
@@ -282,5 +290,6 @@ func init() {
 	logzWindowOffsetTime = logzCmd.PersistentFlags().IntP("days-offset", "o", 0, "days offset of last result window i.e return results max from 2 days ago")
 	logzTimeRangefield = logzCmd.PersistentFlags().String("time-key", "@timestamp", "the field to use for time range query's")
 	logzLimitSize = logzCmd.PersistentFlags().IntP("limit", "l", 10, "limit size of documents to return")
+	logzUpdateLocalCredentials = logzCmd.PersistentFlags().Bool("update-creds", false, "update credentials locally on your OS keyring")
 	rootCmd.AddCommand(logzCmd)
 }

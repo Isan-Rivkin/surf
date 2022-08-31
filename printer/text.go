@@ -21,6 +21,20 @@ func ColorFaint(txt string) string {
 	return col.Sprint(txt)
 }
 
+func ColorHiBlue(txt string) string {
+	col := text.Colors{text.FgHiBlue}
+	return col.Sprint(txt)
+}
+func ColorHiMagenta(txt string) string {
+	col := text.Colors{text.FgHiMagenta}
+	return col.Sprint(txt)
+}
+
+func ColorHiYellow(txt string) string {
+	col := text.Colors{text.FgHiYellow}
+	return col.Sprint(txt)
+}
+
 func PrettyJson(js string) string {
 	t := text.NewJSONTransformer("", "  ")
 	return t(js)

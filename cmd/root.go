@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/common-nighthawk/go-figure"
 	v "github.com/isan-rivkin/cliversioner"
 	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
@@ -37,21 +38,26 @@ const (
 var (
 	cfgFile      string
 	verboseLevel *int
+	longHelp     *bool
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     AppName,
 	Short:   "Free Text Search across your infrastructure platforms via CLI.",
-	Long:    getEnvVarConfig(""),
+	Long:    createOpener(),
 	Version: AppVersion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setLogLevel()
 		go VersionCheck()
 	},
-	// Run: func(cmd *cobra.Command, args []string) {
-
-	// },
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+		if *longHelp {
+			envHelp := getEnvVarConfig("")
+			fmt.Printf("%s \n\n", envHelp)
+		}
+	},
 }
 
 func buildTUI() printer.TuiController[printer.Loader, printer.Table] {
@@ -77,10 +83,6 @@ func getDefaultProfileEnvVar() string {
 	return "default"
 }
 
-func getAppEnvVarStr(envName string) string {
-	return viper.GetString(envName)
-}
-
 func getAppEnvVarStrSlice(envName string) []string {
 	strVal := viper.GetStringSlice(envName)
 	if len(strVal) == 1 {
@@ -102,6 +104,18 @@ func getEnvOrOverride(flagVal *string, envName string) *string {
 		return &v
 	}
 	return flagVal
+}
+
+func createOpener() string {
+	fig := figure.NewColorFigure(strings.ToUpper(AppName), "starwars", "green", true)
+	title := fig.ColorString()
+	a := printer.ColorHiYellow("'surf --long-help' to see all available configuration")
+	b := printer.ColorHiMagenta("'surf config' for interactive configuration")
+	helperTxt := fmt.Sprintf(`
+	* %s
+	* %s
+	`, a, b)
+	return fmt.Sprintf("%s %s\n", title, helperTxt)
 }
 
 func getEnvVarConfig(ctx string) string {
@@ -165,13 +179,13 @@ func init() {
 
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vault-searcher.yaml)")
 	verboseLevel = rootCmd.PersistentFlags().CountP("verbose", "v", "verbosity level -vvv")
-
 	// configure auth related
-	password = rootCmd.PersistentFlags().StringP("password", "s", "", "store password for future auth locally on your OS keyring")
-	username = rootCmd.PersistentFlags().StringP("username", "u", "", "store username for future auth locally on your OS keyring")
-	updateLocalCredentials = rootCmd.PersistentFlags().Bool("update-creds", false, "update credentials locally on your OS keyring")
-	method = rootCmd.PersistentFlags().StringP("auth", "a", "ldap", "authentication method")
-
+	// password = rootCmd.PersistentFlags().StringP("password", "s", "", "store password for future auth locally on your OS keyring")
+	// username = rootCmd.PersistentFlags().StringP("username", "u", "", "store username for future auth locally on your OS keyring")
+	// updateLocalCredentials = rootCmd.PersistentFlags().Bool("update-creds", false, "update credentials locally on your OS keyring")
+	// method = rootCmd.PersistentFlags().StringP("auth", "a", "ldap", "authentication method")
+	//
+	longHelp = rootCmd.PersistentFlags().Bool("long-help", false, "long helper message")
 }
 
 const (

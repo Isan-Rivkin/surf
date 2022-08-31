@@ -30,8 +30,11 @@ import (
 var (
 	username               *string
 	password               *string
+	globalToken            *string
 	method                 *string
 	updateLocalCredentials *bool
+	clearAllStorage        *bool
+	listAll                *bool
 	vaultAddr              *string
 )
 
@@ -50,8 +53,25 @@ var configCmd = &cobra.Command{
 	Short: "app related configuration",
 	Long:  `Use the config command to configure everything from Auth to Parameters and platforms.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runInteractiveConfigLoop()
+		if *clearAllStorage {
+			clearAll([]ls.Namespace{VaultLdap, ElasticSearchNS, LogzSearchNS})
+			log.Info("all storage cleaned")
+		} else if *listAll {
+			if err := listAllKeychainDetails(); err != nil {
+				log.WithError(err).Error("failed listing keychain details")
+			}
+		} else {
+			runInteractiveConfigLoop()
+		}
 	},
+}
+
+func clearAll(ns []ls.Namespace) {
+	for _, n := range ns {
+		if err := clearNamespace(n); err != nil {
+			log.WithError(err).Errorf("failure cleaning namespace %s", ns)
+		}
+	}
 }
 
 var optsToHandlers = map[string]func() error{
@@ -136,12 +156,12 @@ func clearNamespace(ns ls.Namespace) error {
 	return sm.DeleteNamespace(ns)
 }
 
-func getAccessTokenValue(ns ls.Namespace, tokenVal string, supportedMethods map[string]bool) (string, error) {
+func getAccessTokenValue(ns ls.Namespace, tokenVal *string, supportedMethods map[string]bool) (string, error) {
 	if _, ok := supportedMethods[*method]; !ok {
 		return "", fmt.Errorf("only %v methods are supported. not %s", supportedMethods, *method)
 	}
-
-	if tokenVal == "" {
+	var updateKeychain bool
+	if tokenVal == nil || *tokenVal == "" {
 
 		var token string
 		var err error
@@ -157,10 +177,10 @@ func getAccessTokenValue(ns ls.Namespace, tokenVal string, supportedMethods map[
 			token = vals[tokenKey]
 
 		} else {
-			token, err = getUserInteractiveToken()
+			token, updateKeychain, err = getUserInteractiveToken()
 		}
 
-		if *updateLocalCredentials {
+		if *updateLocalCredentials || updateKeychain {
 			data := map[string]string{
 				tokenKey: token,
 				unameKey: "",
@@ -181,9 +201,10 @@ func setAccessCredentialsValues(ns ls.Namespace, supportedMethods map[string]boo
 		return fmt.Errorf("only %v methods are supported. not %s", supportedMethods, *method)
 	}
 
-	if *username == "" || *password == "" {
+	if (username != nil && *username == "") || (password != nil && *password == "") {
 
 		var name, pwd string
+		var update bool
 		var err error
 		sm := newStoreManager()
 
@@ -198,10 +219,10 @@ func setAccessCredentialsValues(ns ls.Namespace, supportedMethods map[string]boo
 			pwd = vals[pwdKey]
 
 		} else {
-			name, pwd, err = getUserInteractiveCredentials()
+			name, pwd, update, err = getUserInteractiveCredentials()
 		}
 
-		if *updateLocalCredentials {
+		if *updateLocalCredentials || update {
 			if err = saveLocalstoreCredentials(sm, ns, name, pwd); err != nil {
 				return err
 			}
@@ -273,7 +294,8 @@ func listAllKeychainDetails() error {
 	return nil
 }
 
-func getUserInteractiveToken() (string, error) {
+func getUserInteractiveToken() (string, bool, error) {
+	result := "No"
 	validate := func(input string) error {
 		if input == "" {
 			return errors.New("no empty input allowed")
@@ -290,12 +312,22 @@ func getUserInteractiveToken() (string, error) {
 
 	if err != nil {
 		log.Fatalf("Prompt failed %v\n", err)
-		return "", err
+		return "", false, err
 	}
-	return token, nil
+	if !*updateLocalCredentials {
+		promptSelect := promptui.Select{
+			Label: "Save locally on OS Keychain for next time?",
+			Items: []string{"Yes", "No"},
+			Size:  2,
+		}
+		_, result, err = promptSelect.Run()
+	}
+	update := result == "Yes" || *updateLocalCredentials
+	return token, update, err
 }
 
-func getUserInteractiveCredentials() (string, string, error) {
+func getUserInteractiveCredentials() (string, string, bool, error) {
+	result := "No"
 	validate := func(input string) error {
 		if input == "" {
 			return errors.New("no empty input allowed")
@@ -313,7 +345,7 @@ func getUserInteractiveCredentials() (string, string, error) {
 
 	if err != nil {
 		log.Fatalf("Prompt failed %v\n", err)
-		return "", "", err
+		return "", "", false, err
 	}
 
 	prompt = promptui.Prompt{
@@ -325,10 +357,19 @@ func getUserInteractiveCredentials() (string, string, error) {
 
 	if err != nil {
 		log.Fatalf("Prompt failed %v\n", err)
-		return "", "", err
+		return "", "", false, err
 	}
 
-	return name, pwd, err
+	if !*updateLocalCredentials {
+		promptSelect := promptui.Select{
+			Label: "Save locally on OS Keychain for next time?",
+			Items: []string{"Yes", "No"},
+			Size:  2,
+		}
+		_, result, err = promptSelect.Run()
+	}
+	update := result == "Yes" || *updateLocalCredentials
+	return name, pwd, update, err
 }
 
 func newStoreManager() ls.StoreManager[ls.Store] {
@@ -343,7 +384,7 @@ func newStoreManager() ls.StoreManager[ls.Store] {
 }
 func setLocalstoreToken(ns ls.Namespace) error {
 	sm := newStoreManager()
-	token, err := getUserInteractiveToken()
+	token, _, err := getUserInteractiveToken()
 
 	if err != nil {
 		return nil
@@ -364,7 +405,7 @@ func setLocalstoreToken(ns ls.Namespace) error {
 
 func setLocalstoreCredentials(ns ls.Namespace) error {
 	sm := newStoreManager()
-	name, pwd, err := getUserInteractiveCredentials()
+	name, pwd, _, err := getUserInteractiveCredentials()
 
 	if err != nil {
 		return nil
@@ -405,5 +446,6 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// configCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	clearAllStorage = configCmd.Flags().Bool("clear-all", false, "Clear all OS keyring storage")
+	listAll = configCmd.Flags().Bool("list", false, "List All OS keyring details (-v for secrets)")
 }

@@ -28,7 +28,7 @@ func (osc *OpenSearchClient) ListIndexes() (ESIndicesResponse, error) {
 
 	result, err := NewESIndexRespObj(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed parsing indices response body %s", err.Error())
+		return nil, fmt.Errorf("failed parsing indices response body %s [%s]", err.Error(), res.Status())
 	}
 
 	return result, nil

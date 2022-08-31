@@ -16,17 +16,21 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 - [X] [AWS S3](https://aws.amazon.com/s3/)
 - [x] [Hashicorp Vault](https://www.vaultproject.io/)
 - [X] [Hashicorp Consul KV](https://www.consul.io/docs/dynamic-app-config/kv)
+- [X] [ElasticSearch / AWS OpenSearch](https://aws.amazon.com/opensearch-service/the-elk-stack/what-is-opensearch/)
+- [X] [Logz.io](https://logz.io/)
 - [ ] Kubernetes - TODO  
 
 # Table of Contents 
 
 - [Overview](#overview)
-- [Usage Examples](#usage-examples)
+- [Examples](#usage-examples)
   * [AWS Route53 Usage](#aws-route53-usage)
   * [AWS ACM Usage](#aws-acm-usage)
   * [AWS S3 Usage](#aws-s3-usage)
   * [Hashicorp Vault Usage](#hashicorp-vault-usage)
   * [Hashicorp Consul Usage](#hashicorp-consul-usage)
+  * [ElasticSearch / OpenSearch Usage](#elasticsearch-and-opensearch-usage)
+  * [Logz.io Usage](#logzio-usage)
 - [Install](#install)
     + [Brew](#brew)
     + [Download Binary](#download-binary)
@@ -134,6 +138,95 @@ Search under the `scripts` path for keys ending with `.sh`
 surf consul --prefix scripts --query "\.sh$"
 ```
 
+## ElasticSearch and OpenSearch Usage 
+
+Search free text and/or [KQL](https://www.elastic.co/guide/en/kibana/master/kuery-query.html). 
+
+Supports Standard Elasticsearch and AWS Opensearch. 
+
+- Example: Search docs containing the term `api` return limit 40 results.
+
+  ```bash
+  surf es -q 'api' -l 40
+  ```
+
+- Example: Search in indexes `prod-*` and `api-*`
+
+  ```bash
+  surf es -q 'api' -i 'prod-*d' -i 'api-*'
+  ```
+
+- Example: Search docs containing the term `api` with client field and `xyz*` pattern and NOT containing the term `staging`
+	
+  ```bash
+  surf es -q 'api AND client:xyz*' --nq staging
+  ```
+
+- Example: List Indexes 
+
+  ```bash
+  surf es --list-indexes
+  ```
+
+- Example: Configure Elasticsearch default settings (use `surf es --help` for more):
+
+  ```bash
+  SURF_ELASTICSEARCH_URL
+  SURF_ELASTICSEARCH_USERNAME
+  SURF_ELASTICSEARCH_PASSWORD
+  SURF_ELASTICSEARCH_TOKEN
+  SURF_ELASTICSEARCH_INDEXES='prod-*,api-*'
+  ```
+
+- Example: Store Username/Password or Token auth on your OS keychain:
+
+  ```bash
+  surf config
+  ```
+
+## Logz.io Usage 
+
+Free text and [KQL](https://www.elastic.co/guide/en/kibana/master/kuery-query.html) Search in [logz.io](https://logz.io/), use the [api website](https://docs.logz.io/user-guide/accounts/account-region.html) to get the address.
+
+- Example: Search docs containing the word 'exception' with limit size 200 
+
+  ```bash
+  surf logz -q 'exception' -l 200
+  ```
+
+- Example: Search docs containing the word 'something' across ALL sub-accounts matching production/automation
+
+  ```bash
+  surf logz -q 'something' --acc production --acc automation 
+  ```
+
+- Example: Search docs containing the word 'production', field errorCode with value Access* and are not containing 'dummy' 
+
+  ```bash
+  surf logz -q 'production AND errorCode:Access*' --nq 'dummy'
+  ```
+
+- Example: Search docs across 10 day window with 2 days offset (e.g all matches between 12 days ago until 2 days ago)
+
+  ```bash
+  surf logz -o 2 -w 10d -q 'some pattern'
+  ```
+
+
+- Example: Configure Logz.io default settings (use `surf logz --help` for more):
+
+  ```bash
+  SURF_LOGZ_IO_TOKEN
+  SURF_LOGZ_IO_URL
+  SURF_LOGZ_IO_ACCOUNT_IDS
+  ```
+
+- Example: Store Username/Password or Token auth on your OS keychain:
+
+  ```bash
+  surf config
+  ```
+
 # Install 
 
 ### Brew 
@@ -173,6 +266,8 @@ go run main.go
 - [x] Vault - LDAP (run `$surf config` )
 - [x] AWS - via profile on `~/.aws/credentials file`
 - [x] Consul - None
+- [X] Elasticsearch / Opensearch - User/Pass or Token (run `$surf config` or `surf es --help`)
+- [X] Logz.io - Token (run `$surf config` or `surf logz --help`)
 
 
 # Version check 

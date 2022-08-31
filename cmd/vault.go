@@ -29,11 +29,14 @@ import (
 )
 
 var (
-	query        *string
-	parallel     *int
-	mount        *string
-	prefix       *string
-	outputWebURL *bool
+	query                       *string
+	vaultPassword               *string
+	vaultUsername               *string
+	parallel                    *int
+	mount                       *string
+	prefix                      *string
+	outputWebURL                *bool
+	vaultUpdateLocalCredentials *bool
 )
 
 // vaultCmd represents the vault command
@@ -45,6 +48,10 @@ var vaultCmd = &cobra.Command{
 	$surf vault -q aws -m 'user_.*pro' 
 	` + getEnvVarConfig("vault"),
 	Run: func(cmd *cobra.Command, args []string) {
+		username = vaultUsername
+		password = vaultPassword
+		updateLocalCredentials = vaultUpdateLocalCredentials
+
 		tui := buildTUI()
 		mount := getEnvOrOverride(mount, EnvKeyVaultDefaultMount)
 		prefix := getEnvOrOverride(prefix, EnvKeyVaultDefaultPrefix)
@@ -102,6 +109,7 @@ func runVaultDefaultAuth() vault.Client[vault.Authenticator] {
 }
 
 func init() {
+
 	rootCmd.AddCommand(vaultCmd)
 	query = vaultCmd.PersistentFlags().StringP("query", "q", "", "search query regex supported")
 	mount = vaultCmd.PersistentFlags().StringP("mount", "m", "", "mount to start the search at the root")
@@ -109,6 +117,11 @@ func init() {
 	parallel = vaultCmd.PersistentFlags().IntP("threads", "t", 10, "parallel search number")
 
 	outputWebURL = vaultCmd.PersistentFlags().Bool("output-url", true, "default output is web urls to click on and go to the browser UI")
-
+	// auth
+	vaultPassword = vaultCmd.Flags().StringP("password", "s", "", "store password for future auth locally on your OS keyring")
+	vaultUsername = vaultCmd.Flags().StringP("username", "u", "", "store username for future auth locally on your OS keyring")
+	vaultUpdateLocalCredentials = vaultCmd.PersistentFlags().Bool("update-creds", false, "update credentials locally on your OS keyring")
+	method = vaultCmd.PersistentFlags().StringP("auth", "a", "ldap", "authentication method")
+	//
 	vaultCmd.MarkPersistentFlagRequired("query")
 }

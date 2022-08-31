@@ -29,16 +29,19 @@ import (
 )
 
 var (
-	esQuery           *string
-	esNotContainQuery *string
-	esToken           *string
-	esAddr            *string
-	esIndexes         *[]string
-	esLimitSize       *int
-	esNoFmtOutput     *bool
-	esTruncateFmt     *bool
-	esListIndexes     *bool
-	esOutputJson      *bool
+	esQuery                  *string
+	esNotContainQuery        *string
+	esToken                  *string
+	esAddr                   *string
+	esUsername               *string
+	esPassword               *string
+	esIndexes                *[]string
+	esLimitSize              *int
+	esNoFmtOutput            *bool
+	esTruncateFmt            *bool
+	esListIndexes            *bool
+	esOutputJson             *bool
+	esUpdateLocalCredentials *bool
 )
 
 // esCmd represents the es command
@@ -64,6 +67,9 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 	surf es -q 'api AND client:xyz*' --nq staging
 	` + getEnvVarConfig("es"),
 	Run: func(cmd *cobra.Command, args []string) {
+		username = esUsername
+		password = esPassword
+		updateLocalCredentials = esUpdateLocalCredentials
 		tui := buildTUI()
 		esAddr = getEnvOrOverride(esAddr, EnvElasticsearchURL)
 		// hirearchy --address flag > SURF_ELASTICSEARCH_URL > ELASTICSEARCH_URL
@@ -80,7 +86,8 @@ Search docs containing the term 'api' with client field and 'xyz*' pattern and N
 		}
 
 		isLogz := false
-		confBuilder, err := initESConfWithAuth(*username, *password, *esToken, isLogz)
+
+		confBuilder, err := initESConfWithAuth(*esUsername, *esPassword, *esToken, isLogz)
 
 		if err != nil {
 			log.WithError(err).Fatal("failed initiating configuration for elastic, please check auth details provided")
@@ -157,7 +164,6 @@ func displayESListIndices(client es.ESClient, tui printer.TuiController[printer.
 	tui.GetTable().PrintInfoBox(table, labels, false)
 }
 
-
 func initESAuthKeyChain(confBuilder *es.ConfigBuilder, isLogz bool) (*es.ConfigBuilder, error) {
 	ns := ElasticSearchNS
 	if isLogz {
@@ -172,11 +178,13 @@ func initESAuthKeyChain(confBuilder *es.ConfigBuilder, isLogz bool) (*es.ConfigB
 	log.Debugf("auth keychain check hasToken %t hasUnamePwd %t", hasToken, hasUnamePwd)
 	var keychainErr error
 	var token string
-	if hasToken {
-		token, keychainErr = getAccessTokenValue(ns, "", map[string]bool{"ldap": true})
-	} else if hasUnamePwd {
+	if hasToken || isLogz {
+		token, keychainErr = getAccessTokenValue(ns, globalToken, map[string]bool{"ldap": true})
+		hasToken = token != ""
+	} else {
 		// todo: method is never used
 		keychainErr = setAccessCredentialsValues(ns, map[string]bool{"ldap": true})
+		hasUnamePwd = password != nil && *password != ""
 	}
 
 	if keychainErr != nil {
@@ -185,7 +193,7 @@ func initESAuthKeyChain(confBuilder *es.ConfigBuilder, isLogz bool) (*es.ConfigB
 	}
 
 	if hasToken && isLogz {
-		logzToken = &token 
+		logzToken = &token
 		return confBuilder.WithHeader(es.LogzIOTokenHeader, token).WithHeader("Content-Type", "application/json"), nil
 	} else if hasToken {
 		return confBuilder.WithBasicAuthToken(token), nil
@@ -207,6 +215,7 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 
 	if isLogz && token != "" {
 		logzToken = &token
+		globalToken = logzToken
 		return confBuilder.WithHeader(es.LogzIOTokenHeader, token).WithHeader("Content-Type", "application/json"), nil
 	}
 	// if username / password provided
@@ -217,12 +226,13 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 		return confBuilder.WithUserAuth(uname, pwd), nil
 	}
 
+	var err error
 	// nothing set
-	if confBuilder, err := initESAuthKeyChain(confBuilder, isLogz); err == nil {
+	if confBuilder, err = initESAuthKeyChain(confBuilder, isLogz); err == nil {
 		return confBuilder, nil
 	}
 
-	return nil, errors.New("no valid auth info provided please use token or username/password run --help to see more info")
+	return nil, fmt.Errorf("auth issue use token or username/password run --help to see more info %s", err.Error())
 }
 
 func init() {
@@ -236,5 +246,9 @@ func init() {
 	esNotContainQuery = esCmd.PersistentFlags().String("nq", "", "kql or free text search query that must NOT match (bool query)")
 	esIndexes = esCmd.PersistentFlags().StringArrayP("index", "i", []string{}, "list of indexes to search -i 'index-a-*' -i index-b can be set via env SURF_ELASTICSEARCH_INDEXES='a,b'")
 	esLimitSize = esCmd.PersistentFlags().IntP("limit", "l", 10, "limit size of documents to return")
+	// auth
+	esPassword = esCmd.Flags().StringP("password", "s", "", "store password for future auth locally on your OS keyring")
+	esUsername = esCmd.Flags().StringP("username", "u", "", "store username for future auth locally on your OS keyring")
+	esUpdateLocalCredentials = esCmd.PersistentFlags().Bool("update-creds", false, "update credentials locally on your OS keyring")
 	rootCmd.AddCommand(esCmd)
 }
