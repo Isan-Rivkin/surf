@@ -187,7 +187,7 @@ var acmCmd = &cobra.Command{
 				}
 			}
 
-			tui.GetTable().PrintInfoBox(certInfo, labelsOrder)
+			tui.GetTable().PrintInfoBox(certInfo, labelsOrder, false)
 		}
 	},
 }

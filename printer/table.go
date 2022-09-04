@@ -5,10 +5,11 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/nathan-fiscaletti/consolesize-go"
 )
 
 type Table interface {
-	PrintInfoBox(infoBox map[string]string, labelsOrder []string)
+	PrintInfoBox(infoBox map[string]string, labelsOrder []string, forceWidth bool)
 }
 
 type TableWidget struct {
@@ -37,7 +38,7 @@ func (tp *TableWidget) rowsFromInfoBox(infoBox map[string]string, labelsOrder []
 	return rows
 }
 
-func (tp *TableWidget) PrintInfoBox(infoBox map[string]string, labelsOrder []string) {
+func (tp *TableWidget) PrintInfoBox(infoBox map[string]string, labelsOrder []string, forceWidth bool) {
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 
 	t := table.NewWriter()
@@ -47,9 +48,20 @@ func (tp *TableWidget) PrintInfoBox(infoBox map[string]string, labelsOrder []str
 	for _, r := range rows {
 		t.AppendRow(r, rowConfigAutoMerge)
 	}
+
+	col1 := table.ColumnConfig{Number: 1, Colors: text.Colors{text.FgGreen}}
+	col2 := table.ColumnConfig{Number: 2}
+
+	if forceWidth {
+		consoleWidth, _ := consolesize.GetConsoleSize()
+		maxWidth := int(float64(consoleWidth) * 0.8)
+		col1.WidthMax = maxWidth
+		col2.WidthMax = maxWidth
+	}
+
 	t.SetColumnConfigs([]table.ColumnConfig{
-		{Number: 1, Colors: text.Colors{text.FgGreen}},
-		{Number: 2},
+		col1,
+		col2,
 	})
 
 	t.SetStyle(table.StyleLight)

@@ -1,6 +1,8 @@
 package printer
 
 import (
+	"strings"
+
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
@@ -12,4 +14,38 @@ func FmtURL(url string) string {
 	return colorsURL.Sprint(url)
 	// transformer := text.NewURLTransformer()
 	// return transformer(url)
+}
+
+func ColorFaint(txt string) string {
+	col := text.Colors{text.Faint}
+	return col.Sprint(txt)
+}
+
+func ColorHiBlue(txt string) string {
+	col := text.Colors{text.FgHiBlue}
+	return col.Sprint(txt)
+}
+func ColorHiMagenta(txt string) string {
+	col := text.Colors{text.FgHiMagenta}
+	return col.Sprint(txt)
+}
+
+func ColorHiYellow(txt string) string {
+	col := text.Colors{text.FgHiYellow}
+	return col.Sprint(txt)
+}
+
+func PrettyJson(js string) string {
+	t := text.NewJSONTransformer("", "  ")
+	return t(js)
+}
+
+func TruncateText(s string, max int, delimeters string) string {
+	if max > len(s) {
+		return s
+	}
+	if delimeters == "" {
+		delimeters = " ,"
+	}
+	return s[:strings.LastIndexAny(s[:max], delimeters)] + "..."
 }

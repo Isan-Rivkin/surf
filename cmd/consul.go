@@ -111,7 +111,7 @@ Pattern matching against keys in Hasicorp Consul
 				labelsOrder = append(labelsOrder, "Query")
 			}
 
-			tui.GetTable().PrintInfoBox(summary, labelsOrder)
+			tui.GetTable().PrintInfoBox(summary, labelsOrder, false)
 		} else {
 			for i, key := range output.Matches {
 				fmt.Printf("%d. %s\n", i, key)

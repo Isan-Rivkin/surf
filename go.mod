@@ -3,10 +3,15 @@ module github.com/isan-rivkin/surf
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go v1.35.30
+	github.com/Jeffail/gabs/v2 v2.6.1
+	github.com/aquasecurity/esquery v0.2.0
+	github.com/aws/aws-sdk-go v1.42.27
 	github.com/aws/aws-sdk-go-v2/config v1.15.13
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.1
 	github.com/briandowns/spinner v1.18.1
+	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
+	github.com/elastic/go-elasticsearch/v7 v7.17.1
+	github.com/elastic/go-elasticsearch/v8 v8.3.0
 	github.com/hashicorp/consul/api v1.12.0
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/isan-rivkin/cliversioner v0.0.0-20220413085252-f4ec446e8946
@@ -14,6 +19,9 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.0.5
 	github.com/magiconair/properties v1.8.5
 	github.com/manifoldco/promptui v0.9.0
+	github.com/nathan-fiscaletti/consolesize-go v0.0.0-20220204101620-317176b6684d
+	github.com/opensearch-project/opensearch-go v1.1.0
+	github.com/opensearch-project/opensearch-go/v2 v2.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.10.1
@@ -42,7 +50,9 @@ require (
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/danieljoos/wincred v1.1.0 // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.0.0-20211216131617-bbee439d559c // indirect
 	github.com/fatih/color v1.13.0 // indirect
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/godbus/dbus/v5 v5.0.6 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -91,8 +101,8 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/tcnksm/go-latest v0.0.0-20170313132115-e3007ae9052e // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f // indirect
 	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect

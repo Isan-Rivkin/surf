@@ -41,9 +41,9 @@ func (la *LdapAuthenticator) Auth() (*vaultApi.Client, error) {
 	data := map[string]any{
 		"password": la.password,
 	}
-
+	// TODO support external path for ldap or any other auth method
 	path := fmt.Sprintf("auth/ldap/login/%s", la.username)
-
+	
 	token, err := c.Logical().Write(path, data)
 
 	if err != nil {
