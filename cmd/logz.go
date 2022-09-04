@@ -268,7 +268,7 @@ func getLogzIOAccountIDs() ([]string, error) {
 				}
 			}
 		}
-		log.Debugf("matches account ids %v", *logzAccountNames, accountIdsResult)
+		log.Debugf("matches account %v ids %v", *logzAccountNames, accountIdsResult)
 		return accountIdsResult, nil
 	}
 	*logzAccountIds = getEnvStrSliceOrOverride(logzAccountIds, EnvLogzIOSubAccountIDs)
