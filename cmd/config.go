@@ -347,17 +347,21 @@ func getUserInteractiveCredentials() (string, string, bool, error) {
 		log.Fatalf("Prompt failed %v\n", err)
 		return "", "", false, err
 	}
+	var name string
+	if username == nil || *username == "" {
+		prompt = promptui.Prompt{
+			Label:    "Username",
+			Validate: validate,
+		}
 
-	prompt = promptui.Prompt{
-		Label:    "Username",
-		Validate: validate,
-	}
+		name, err = prompt.Run()
 
-	name, err := prompt.Run()
-
-	if err != nil {
-		log.Fatalf("Prompt failed %v\n", err)
-		return "", "", false, err
+		if err != nil {
+			log.Fatalf("Prompt failed %v\n", err)
+			return "", "", false, err
+		}
+	} else {
+		name = *username
 	}
 
 	if !*updateLocalCredentials {
