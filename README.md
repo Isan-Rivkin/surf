@@ -40,8 +40,6 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 - [Version check](#version-check)
 - [How it Works](#how-it-works)
 
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
-
 # Overview
 
 SURF is built for Infrastructure Engineers as a CLI tool that enables searching any pattern across different platforms. 
