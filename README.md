@@ -170,9 +170,9 @@ Supports Standard Elasticsearch and AWS Opensearch.
 
   ```bash
   SURF_ELASTICSEARCH_URL
-  SURF_ELASTICSEARCH_USERNAME
-  SURF_ELASTICSEARCH_PASSWORD
-  SURF_ELASTICSEARCH_TOKEN
+  SURF_ELASTICSEARCH_USERNAME='token-or-username-and-password'
+  SURF_ELASTICSEARCH_PASSWORD='token-or-username-and-password'
+  SURF_ELASTICSEARCH_TOKEN='token-or-username-and-password'
   SURF_ELASTICSEARCH_INDEXES='prod-*,api-*'
   ```
 
