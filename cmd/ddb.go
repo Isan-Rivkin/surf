@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/isan-rivkin/surf/lib/awsu"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -73,6 +74,18 @@ func listDDBTables(ddb awsu.DDBApi) {
 	for _, t := range tables {
 		fmt.Println(t)
 	}
+	gtables, err := ddb.ListAllGlobalTables()
+	if err != nil {
+		log.WithError(err).Fatalf("failed listing tables")
+	}
+	fmt.Printf("global tables %d", len(gtables))
+	for _, t := range gtables {
+		fmt.Println(aws.StringValue(t.GlobalTableName))
+		for _, r := range t.ReplicationGroup {
+			fmt.Printf("=> %s\n", aws.StringValue(r.RegionName))
+		}
+	}
+
 }
 
 func init() {
