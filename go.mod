@@ -23,7 +23,7 @@ require (
 	github.com/opensearch-project/opensearch-go v1.1.0
 	github.com/opensearch-project/opensearch-go/v2 v2.0.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.10.1
 	github.com/zalando/go-keyring v0.2.0
 )
@@ -78,7 +78,7 @@ require (
 	github.com/hashicorp/serf v0.9.6 // indirect
 	github.com/hashicorp/vault/sdk v0.4.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lixiangzhong/dnsutil v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
