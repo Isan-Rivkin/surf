@@ -47,6 +47,7 @@ var ddbCmd = &cobra.Command{
 	surf ddb --list-tables
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+		// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
 		fmt.Println("ddb called")
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
