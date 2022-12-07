@@ -32,6 +32,7 @@ var (
 	ddbFilterKeys          *bool
 	ddbFilterData          *bool
 	ddbFilterAllOpts       *bool
+	ddbStopOnFirstMatch    *bool
 )
 
 // ddbCmd represents the ddb command
@@ -84,4 +85,5 @@ func init() {
 	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported")
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
 	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
+	ddbStopOnFirstMatch = ddbCmd.Flags().Bool("stop-first-match", false, "if true stop stop searching on first match found")
 }
