@@ -18,20 +18,20 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/isan-rivkin/surf/lib/awsu"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	tableName        string
-	ddbQuery         string
-	ddbListTables    *bool
-	ddbFilterTables  *bool
-	ddbFilterKeys    *bool
-	ddbFilterData    *bool
-	ddbFilterAllOpts *bool
+	tableNamePattern       string
+	ddbQuery               string
+	ddbIncludeGlobalTables *bool
+	ddbListTables          *bool
+	ddbFilterTables        *bool
+	ddbFilterKeys          *bool
+	ddbFilterData          *bool
+	ddbFilterAllOpts       *bool
 )
 
 // ddbCmd represents the ddb command
@@ -60,32 +60,20 @@ var ddbCmd = &cobra.Command{
 		}
 		ddb := awsu.NewDDBClient(client)
 		if *ddbListTables {
-			listDDBTables(ddb)
+			listDDBTables(ddb, true, *ddbIncludeGlobalTables)
 			return
 		}
 	},
 }
 
-func listDDBTables(ddb awsu.DDBApi) {
-	tables, err := ddb.ListAllTables()
+func listDDBTables(ddb awsu.DDBApi, withNonGlobal, withGlobal bool) {
+	tables, err := ddb.ListCombinedTables(withNonGlobal, withGlobal)
 	if err != nil {
 		log.WithError(err).Fatalf("failed listing tables")
 	}
 	for _, t := range tables {
-		fmt.Println(t)
+		fmt.Println(t.TableName())
 	}
-	gtables, err := ddb.ListAllGlobalTables()
-	if err != nil {
-		log.WithError(err).Fatalf("failed listing tables")
-	}
-	fmt.Printf("global tables %d", len(gtables))
-	for _, t := range gtables {
-		fmt.Println(aws.StringValue(t.GlobalTableName))
-		for _, r := range t.ReplicationGroup {
-			fmt.Printf("=> %s\n", aws.StringValue(r.RegionName))
-		}
-	}
-
 }
 
 func init() {
@@ -95,4 +83,5 @@ func init() {
 	ddbCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported")
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
+	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
 }
