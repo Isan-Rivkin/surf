@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -363,8 +363,8 @@ func getUserInteractiveCredentials() (string, string, bool, error) {
 	} else {
 		name = *username
 	}
-
-	if !*updateLocalCredentials {
+	optinUpdateLocalCreds := updateLocalCredentials != nil && *updateLocalCredentials
+	if !optinUpdateLocalCreds {
 		promptSelect := promptui.Select{
 			Label: "Save locally on OS Keychain for next time?",
 			Items: []string{"Yes", "No"},
@@ -372,7 +372,7 @@ func getUserInteractiveCredentials() (string, string, bool, error) {
 		}
 		_, result, err = promptSelect.Run()
 	}
-	update := result == "Yes" || *updateLocalCredentials
+	update := result == "Yes" || optinUpdateLocalCreds
 	return name, pwd, update, err
 }
 
