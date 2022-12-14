@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	ddbAttr "github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,6 +70,7 @@ type DDBApi interface {
 	ListAllTables() ([]string, error)
 	ListAllGlobalTables() ([]*dynamodb.GlobalTable, error)
 	ListCombinedTables(fetchNonGlobal, fetchGlobal bool) ([]DDBTableDescriber, error)
+	ScanTable(name string) error
 }
 
 type DDBClient struct {
@@ -85,6 +87,29 @@ func (ddb *DDBClient) client() *dynamodb.DynamoDB {
 	return ddb.c
 }
 
+func (ddb *DDBClient) ScanTable(name string) error {
+	c := ddb.client()
+	// Example iterating over at most 3 pages of a Scan operation.
+	pageNum := 0
+	err := c.ScanPages(&dynamodb.ScanInput{
+		TableName: aws.String(name),
+	},
+		func(page *dynamodb.ScanOutput, lastPage bool) bool {
+			pageNum++
+			for _, item := range page.Items {
+				for k, v := range item {
+					fmt.Println(k)
+					fmt.Println(v)
+					//https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
+					//ddbAttr.UnmarshalMap(item, )
+					_ = ddbAttr.Encoder{}
+				}
+			}
+			//fmt.Println(page)
+			return pageNum <= 3
+		})
+	return err
+}
 func (ddb *DDBClient) DescribeTable(name string, isGlobal bool) (DDBTableDescriber, error) {
 	c := ddb.client()
 	if isGlobal {

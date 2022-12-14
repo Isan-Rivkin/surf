@@ -64,6 +64,11 @@ var ddbCmd = &cobra.Command{
 		if *ddbListTables {
 			listDDBTables(ddb, true, *ddbIncludeGlobalTables)
 			return
+		} else {
+			err = ddb.ScanTable(tableNamePattern)
+			if err != nil {
+				log.WithError(err).Fatalf("failed scanning table")
+			}
 		}
 	},
 }
@@ -84,6 +89,8 @@ func init() {
 	ddbCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", getDefaultProfileEnvVar(), "~/.aws/credentials chosen account")
 	ddbCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported")
+	ddbCmd.PersistentFlags().StringVarP(&tableNamePattern, "table", "t", "", "regex table pattern name to match")
+
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
 	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
 	ddbStopOnFirstMatch = ddbCmd.Flags().Bool("stop-first-match", false, "if true stop stop searching on first match found")
