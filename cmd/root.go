@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	AppVersion = "2.0.2"
+	AppVersion = "2.1.1"
 	AppName    = "surf"
 )
 
