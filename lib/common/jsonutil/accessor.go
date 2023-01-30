@@ -16,6 +16,7 @@ func NewJsonContainerFromReader(body io.ReadCloser) (*gabs.Container, error) {
 	data := buf.Bytes()
 	return NewJsonContainerFromBytes(data)
 }
+
 func NewJsonContainerFromBytes(payload []byte) (*gabs.Container, error) {
 	
 	jsonParsed, err := gabs.ParseJSON(payload)

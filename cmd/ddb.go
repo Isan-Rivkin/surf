@@ -18,7 +18,11 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/isan-rivkin/surf/lib/awsu"
+	common "github.com/isan-rivkin/surf/lib/search"
+	search "github.com/isan-rivkin/surf/lib/search/ddbsearch"
+	"github.com/isan-rivkin/surf/printer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +37,7 @@ var (
 	ddbFilterData          *bool
 	ddbFilterAllOpts       *bool
 	ddbStopOnFirstMatch    *bool
+	ddbFailFast            *bool
 )
 
 // ddbCmd represents the ddb command
@@ -47,8 +52,8 @@ var ddbCmd = &cobra.Command{
 	surf ddb --list-tables
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+		tui := buildTUI()
 		// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
-		fmt.Println("ddb called")
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
 		if err != nil {
@@ -65,21 +70,61 @@ var ddbCmd = &cobra.Command{
 			listDDBTables(ddb, true, *ddbIncludeGlobalTables)
 			return
 		} else {
-			err = ddb.ScanTable(tableNamePattern)
+
+			parallel := 30
+			m := common.NewDefaultRegexMatcher()
+			p := search.NewParserFactory()
+			s := search.NewSearcher[awsu.DDBApi, common.Matcher](ddb, m, p)
+			i, err := search.NewSearchInput(tableNamePattern, ddbQuery, *ddbFailFast, *ddbIncludeGlobalTables, search.ObjectMatch, parallel)
 			if err != nil {
-				log.WithError(err).Fatalf("failed scanning table")
+				log.WithError(err).Error("failed creating search input")
 			}
+			tui.GetLoader().Start("searching dynamodb", "", "green")
+			output, err := s.Search(i)
+			tui.GetLoader().Stop()
+
+			if err != nil {
+				log.WithError(err).Fatalf("failed running search on dynamodb")
+			}
+			printDDBSearchOutput(i, output, tui)
 		}
 	},
 }
 
+func printDDBSearchOutput(input *search.Input, output *search.Output, tui printer.TuiController[printer.Loader, printer.Table]) {
+
+	for idx, match := range output.Matches {
+		labels := []string{fmt.Sprintf("#%d Table", idx+1)}
+		table := map[string]string{
+			fmt.Sprintf("#%d Table", idx+1): match.TableName,
+		}
+		for k, v := range match.ObjectData {
+			keyLabel := fmt.Sprintf("key.%s", k)
+			labels = append(labels, keyLabel)
+			table[keyLabel] = aws.StringValue(v)
+		}
+		tui.GetTable().PrintInfoBox(table, labels, true)
+	}
+	tui.GetTable().PrintInfoBox(
+		map[string]string{
+			"Total Matches": fmt.Sprintf("%d", len(output.Matches)),
+			"Query":         input.Value,
+		},
+		[]string{
+			"Total Matches",
+			"Query",
+		}, true)
+}
+
 func listDDBTables(ddb awsu.DDBApi, withNonGlobal, withGlobal bool) {
+
 	tables, err := ddb.ListCombinedTables(withNonGlobal, withGlobal)
 	if err != nil {
 		log.WithError(err).Fatalf("failed listing tables")
 	}
+	// TODO pretty print
 	for _, t := range tables {
-		fmt.Println(t.TableName())
+		fmt.Printf("> %s \n", t.TableName())
 	}
 }
 
@@ -91,6 +136,7 @@ func init() {
 	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported")
 	ddbCmd.PersistentFlags().StringVarP(&tableNamePattern, "table", "t", "", "regex table pattern name to match")
 
+	ddbFailFast = ddbCmd.Flags().Bool("fail-fast", false, "fail on first error seen")
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
 	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
 	ddbStopOnFirstMatch = ddbCmd.Flags().Bool("stop-first-match", false, "if true stop stop searching on first match found")

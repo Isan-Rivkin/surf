@@ -5,16 +5,27 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	ddbAttr "github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	log "github.com/sirupsen/logrus"
 )
 
+type DDBAttributesHandler = func([]map[string]*dynamodb.AttributeValue) bool
+
+type DDBSchemaKey struct {
+	Name string
+	// S (string),N (number) ,B (binary)
+	KeyType string
+	// HASH - partition key
+	// RANGE - sort key
+	KeyRole string
+}
 type DDBTableDescriber interface {
+	IsTableStatusOK() bool
 	IsTableDescribed() bool
 	IsGlobalTable() bool
 	TableName() string
 	GetRawGlobalTableDescriber() *dynamodb.DescribeGlobalTableOutput
 	GetRawTableDescriber() *dynamodb.DescribeTableOutput
+	GetSchemaDefinitions() (map[string]*DDBSchemaKey, error)
 }
 
 type DDBTableWrapper struct {
@@ -65,12 +76,45 @@ func (w *DDBTableWrapper) GetRawTableDescriber() *dynamodb.DescribeTableOutput {
 	return w.table
 }
 
+func (w *DDBTableWrapper) IsTableStatusOK() bool {
+	if w.IsTableDescribed() {
+		s := aws.StringValue(w.GetRawTableDescriber().Table.TableStatus)
+		return s == "ACTIVE" || s == "UPDATING"
+	}
+	return false
+}
+func (w *DDBTableWrapper) GetSchemaDefinitions() (map[string]*DDBSchemaKey, error) {
+	if !w.IsTableDescribed() {
+		return nil, fmt.Errorf("table %s not described ", w.TableName())
+	}
+	//NOTE: global desciption is irrelevant we only care for the replica info in schema key
+	desc := w.GetRawTableDescriber()
+	if desc == nil {
+		return nil, fmt.Errorf("table %s descriptor is nil", w.TableName())
+	}
+
+	result := map[string]*DDBSchemaKey{}
+
+	for _, kschem := range desc.Table.KeySchema {
+		name := aws.StringValue(kschem.AttributeName)
+		result[name] = &DDBSchemaKey{
+			Name:    name,
+			KeyRole: aws.StringValue(kschem.KeyType),
+		}
+	}
+	for _, attr := range desc.Table.AttributeDefinitions {
+		name := aws.StringValue(attr.AttributeName)
+		result[name].KeyType = aws.StringValue(attr.AttributeType)
+	}
+	return result, nil
+}
+
 type DDBApi interface {
 	DescribeTable(name string, isGlobal bool) (DDBTableDescriber, error)
 	ListAllTables() ([]string, error)
 	ListAllGlobalTables() ([]*dynamodb.GlobalTable, error)
 	ListCombinedTables(fetchNonGlobal, fetchGlobal bool) ([]DDBTableDescriber, error)
-	ScanTable(name string) error
+	ScanTable(name string, pageHandler DDBAttributesHandler) error
 }
 
 type DDBClient struct {
@@ -87,29 +131,18 @@ func (ddb *DDBClient) client() *dynamodb.DynamoDB {
 	return ddb.c
 }
 
-func (ddb *DDBClient) ScanTable(name string) error {
+func (ddb *DDBClient) ScanTable(name string, pageHandler DDBAttributesHandler) error {
 	c := ddb.client()
-	// Example iterating over at most 3 pages of a Scan operation.
-	pageNum := 0
-	err := c.ScanPages(&dynamodb.ScanInput{
-		TableName: aws.String(name),
-	},
+	err := c.ScanPages(
+		&dynamodb.ScanInput{
+			TableName: aws.String(name),
+		},
 		func(page *dynamodb.ScanOutput, lastPage bool) bool {
-			pageNum++
-			for _, item := range page.Items {
-				for k, v := range item {
-					fmt.Println(k)
-					fmt.Println(v)
-					//https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
-					//ddbAttr.UnmarshalMap(item, )
-					_ = ddbAttr.Encoder{}
-				}
-			}
-			//fmt.Println(page)
-			return pageNum <= 3
+			return pageHandler(page.Items)
 		})
 	return err
 }
+
 func (ddb *DDBClient) DescribeTable(name string, isGlobal bool) (DDBTableDescriber, error) {
 	c := ddb.client()
 	if isGlobal {
@@ -151,7 +184,7 @@ func (ddb *DDBClient) ListAllGlobalTables() ([]*dynamodb.GlobalTable, error) {
 	tables := []*dynamodb.GlobalTable{}
 	var exclusiveStartTableName *string
 	for {
-		log.WithField("start_table", aws.StringValue(exclusiveStartTableName)).Debug("list ddb tables request")
+		log.WithField("start_table", aws.StringValue(exclusiveStartTableName)).Debug("list global ddb tables request")
 
 		out, err := ddb.client().ListGlobalTables(&dynamodb.ListGlobalTablesInput{
 			ExclusiveStartGlobalTableName: exclusiveStartTableName,
