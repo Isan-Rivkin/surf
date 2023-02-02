@@ -237,7 +237,7 @@ func initESConfWithAuth(uname, pwd, token string, isLogz bool) (*es.ConfigBuilde
 
 func init() {
 	esListIndexes = esCmd.Flags().Bool("list-indexes", false, "list all available indexes --index or env var to search in")
-	esOutputJson = esCmd.Flags().Bool("json", false, "if set the output will be in JSON format (for script usage)")
+	esOutputJson = esCmd.Flags().Bool("json", false, "if set the output will be in JSON format (for script usage)")	
 	esToken = esCmd.PersistentFlags().StringP("token", "t", "", "auth with token")
 	esNoFmtOutput = esCmd.Flags().Bool("no-fmt", false, "if true the output document will not be formatted, usually when the output is not a json formatted doc we want raw.")
 	esTruncateFmt = esCmd.Flags().Bool("truncate", false, "if true the output will be truncated.")

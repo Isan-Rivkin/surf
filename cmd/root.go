@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	AppVersion = "2.0.2"
+	AppVersion = "2.1.1"
 	AppName    = "surf"
 )
 
@@ -134,6 +134,12 @@ func getEnvVarConfig(ctx string) string {
 func setLogLevel() {
 	lvl := getLogLevelFromVerbosity()
 	log.SetLevel(lvl)
+	if lvl == log.InfoLevel {
+		log.SetFormatter(&log.TextFormatter{
+			DisableLevelTruncation: true,
+			DisableTimestamp:       true,
+		})
+	}
 	if lvl >= log.TraceLevel {
 		log.SetReportCaller(true)
 	}

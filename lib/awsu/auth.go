@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/isan-rivkin/route53-cli/aws_utils"
 )
 
@@ -56,4 +57,12 @@ func NewS3(in *AuthInput) (*s3.Client, error) {
 		return nil, fmt.Errorf("failed creating s3 client")
 	}
 	return s, nil
+}
+
+func NewDDB(in *AuthInput) (*dynamodb.DynamoDB, error) {
+	ddb := dynamodb.New(in.Provider, in.Configs...)
+	if ddb == nil {
+		return nil, fmt.Errorf("failed initiating dynamodb instance")
+	}
+	return ddb, nil
 }
