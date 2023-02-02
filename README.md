@@ -27,7 +27,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 - [Examples](#usage-examples)
   * [AWS Route53 Usage](#aws-route53-usage)
   * [AWS ACM Usage](#aws-acm-usage)
-  * [AWS DynamoDB Usage](#aws-s3-usage)
+  * [AWS DynamoDB Usage](#aws-dynamodb-usage)
   * [AWS S3 Usage](#aws-s3-usage)
   * [Hashicorp Vault Usage](#hashicorp-vault-usage)
   * [Hashicorp Consul Usage](#hashicorp-consul-usage)
