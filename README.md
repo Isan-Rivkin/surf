@@ -14,6 +14,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 - [X] [AWS Route53 and Targets](https://github.com/Isan-Rivkin/route53-cli)
 - [X] [AWS ACM](https://aws.amazon.com/certificate-manager/)
 - [X] [AWS S3](https://aws.amazon.com/s3/)
+- [X] [AWS DynamoDB](https://aws.amazon.com/dynamodb/)
 - [x] [Hashicorp Vault](https://www.vaultproject.io/)
 - [X] [Hashicorp Consul KV](https://www.consul.io/docs/dynamic-app-config/kv)
 - [X] [ElasticSearch / AWS OpenSearch](https://aws.amazon.com/opensearch-service/the-elk-stack/what-is-opensearch/)
@@ -73,6 +74,44 @@ Example search: certificate attached to a loab balancer:
 ```bash
 surf acm -q 's:elasticloadbalancing:us-west-2:123:loadbalancer/app/alb' --filter-used-by
 ```
+
+## AWS DynamoDB Usage 
+
+Search free text data in DynamoDB 
+
+**Supported Formats:** `protobuf`, `base64`, `json`, `binary`, `bytes`.
+
+
+Example: list existing tables
+
+```bash 
+surf ddb --list-tables
+```
+	
+Example: use `-p` for aws profile, `-r` for region
+
+```bash 
+surf ddb -q val -t table -p my-aws-profile -r us-east-1
+```
+
+Example: search all tables with `production` in their name, where the data containing the pattern `val`
+
+```bash 
+surf ddb -q val --all-tables -t production
+```
+
+Example: search all tables data containing the word `val`, output as `JSON`
+
+```bash 
+surf ddb -q val --all-tables -o json
+```
+
+Example: `stop on first match`, search all tables data containing the word `val`
+
+```bash 
+surf ddb -q val -t my-prefix-table --stop-first-match
+```
+
 
 ## AWS S3 Usage 
 

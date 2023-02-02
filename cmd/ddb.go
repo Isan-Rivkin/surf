@@ -34,10 +34,7 @@ var (
 	ddbOutputType          string
 	ddbIncludeGlobalTables *bool
 	ddbListTables          *bool
-	ddbFilterTables        *bool
-	ddbFilterKeys          *bool
-	ddbFilterData          *bool
-	ddbFilterAllOpts       *bool
+	ddbAllowAllTables      *bool
 	ddbStopOnFirstMatch    *bool
 	ddbFailFast            *bool
 	sanitizeOutput         *bool
@@ -51,17 +48,45 @@ var validDDBOutputs = map[string]bool{
 // ddbCmd represents the ddb command
 var ddbCmd = &cobra.Command{
 	Use:   "ddb",
-	Short: "DynamoDB search tool",
+	Short: "Search data in DynamoDB (formats: protobuf, base64, json, binary, bytes)",
 	Long: `
-	TBD...
+	
+Search free text patterns inside Bytes, Binary, Protobuf, Base64 and Json formats.
 
-	surf ddb -q val -t table-* [--filter-tables, --filter-keys, --filter-data, --filter-all]
+=== list existing tables ===
 
 	surf ddb --list-tables
+	
+=== use -p for aws profile, -r for region ===
+
+	$surf ddb -q val -t table -p my-aws-profile -r us-east-1
+
+=== search all tables with production in their name, where the data containing the pattern val ===
+
+	$surf ddb -q val --all-tables -t production
+
+=== search all tables data containing the word val, output as JSON ===
+	
+	$surf ddb -q val --all-tables -o json
+
+=== stop on first match, search all tables data containing the word val ===
+	
+	$surf ddb -q val -t my-prefix-table --stop-first-match
+
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		if _, exist := validDDBOutputs[ddbOutputType]; !exist {
-			log.Fatalf("invalid output type %s only valid %v", ddbOutputType, validDDBOutputs)
+
+		if !*ddbListTables {
+			if ddbQuery == "" {
+				log.Fatalf("invalid output type %s only valid %v, use --help", ddbOutputType, validDDBOutputs)
+			}
+
+			if _, exist := validDDBOutputs[ddbOutputType]; !exist {
+				log.Fatalf("invalid output type %s only valid %v, use --help", ddbOutputType, validDDBOutputs)
+			}
+			if !*ddbAllowAllTables && tableNamePattern == "" {
+				log.Fatal("must use --all-tables explicitly or --table <pattern> flag, use --help")
+			}
 		}
 		tui := buildTUI()
 		// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
@@ -90,7 +115,7 @@ var ddbCmd = &cobra.Command{
 			m := common.NewDefaultRegexMatcher()
 			p := search.NewParserFactory()
 			s := search.NewSearcher[awsu.DDBApi, common.Matcher](ddb, m, p)
-			i, err := search.NewSearchInput(tableNamePattern, ddbQuery, *ddbFailFast, *ddbIncludeGlobalTables, search.ObjectMatch, parallel)
+			i, err := search.NewSearchInput(tableNamePattern, ddbQuery, *ddbFailFast, *ddbIncludeGlobalTables, *ddbStopOnFirstMatch, search.ObjectMatch, parallel)
 			if err != nil {
 				log.WithError(err).Error("failed creating search input")
 			}
@@ -222,4 +247,5 @@ func init() {
 	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
 	ddbStopOnFirstMatch = ddbCmd.Flags().Bool("stop-first-match", false, "if true stop stop searching on first match found")
 	sanitizeOutput = ddbCmd.Flags().Bool("sanitize", true, "if true will remove all non-ascii charts from outputs")
+	ddbAllowAllTables = ddbCmd.Flags().Bool("all-tables", false, "when not providing --table pattern this flag required (potentially expensive)")
 }

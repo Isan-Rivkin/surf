@@ -134,6 +134,12 @@ func getEnvVarConfig(ctx string) string {
 func setLogLevel() {
 	lvl := getLogLevelFromVerbosity()
 	log.SetLevel(lvl)
+	if lvl == log.InfoLevel {
+		log.SetFormatter(&log.TextFormatter{
+			DisableLevelTruncation: true,
+			DisableTimestamp:       true,
+		})
+	}
 	if lvl >= log.TraceLevel {
 		log.SetReportCaller(true)
 	}

@@ -28,12 +28,14 @@ type Input struct {
 	WithGlobalTables bool
 	// Match level to search
 	Match MatchLevel
+	// Stop on first match
+	StopFirstMatch bool
 }
 
-func NewSearchInput(table, query string, failFast, withGlobalTables bool, match MatchLevel, parallel int) (*Input, error) {
+func NewSearchInput(table, query string, failFast, withGlobalTables, stopFirstMatch bool, match MatchLevel, parallel int) (*Input, error) {
 
 	if query == "" {
-		return nil, fmt.Errorf("query must not be empty tables %s", table)
+		return nil, fmt.Errorf("query must not be empty %s", table)
 	}
 	if match == TableNameOnlyMatch && table == "" {
 		return nil, fmt.Errorf("when tables level only must specify table name")
@@ -46,5 +48,6 @@ func NewSearchInput(table, query string, failFast, withGlobalTables bool, match 
 		Value:            query,
 		WithGlobalTables: withGlobalTables,
 		Match:            match,
+		StopFirstMatch:   stopFirstMatch,
 	}, nil
 }

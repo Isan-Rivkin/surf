@@ -113,7 +113,7 @@ func (s *DefaultSearcher[CC, Matcher]) Search(i *Input) (*Output, error) {
 					)
 					searchables, err := s.SearchTableData(tDescriber.TableName(), i, p, lg)
 					if err != nil {
-						lg.WithError(err).Debug("failed while searchle a single table data")
+						lg.WithError(err).Debug("failed while searching a single table data")
 						res.Err = err
 					} else {
 						res.Hits = searchables
@@ -212,6 +212,9 @@ func (s *DefaultSearcher[CC, Matcher]) SearchTableData(name string, input *Input
 					ObjectData: parsedItem,
 				}
 				searchables = append(searchables, hit)
+				if input.StopFirstMatch {
+					return false
+				}
 			}
 		}
 		return true
