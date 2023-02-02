@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/isan-rivkin/surf/lib/awsu"
+	accessor "github.com/isan-rivkin/surf/lib/common/jsonutil"
 	common "github.com/isan-rivkin/surf/lib/search"
 	search "github.com/isan-rivkin/surf/lib/search/ddbsearch"
 	"github.com/isan-rivkin/surf/printer"
@@ -30,6 +31,7 @@ import (
 var (
 	tableNamePattern       string
 	ddbQuery               string
+	ddbOutputType          string
 	ddbIncludeGlobalTables *bool
 	ddbListTables          *bool
 	ddbFilterTables        *bool
@@ -38,7 +40,13 @@ var (
 	ddbFilterAllOpts       *bool
 	ddbStopOnFirstMatch    *bool
 	ddbFailFast            *bool
+	sanitizeOutput         *bool
 )
+
+var validDDBOutputs = map[string]bool{
+	"pretty": true,
+	"json":   true,
+}
 
 // ddbCmd represents the ddb command
 var ddbCmd = &cobra.Command{
@@ -52,6 +60,9 @@ var ddbCmd = &cobra.Command{
 	surf ddb --list-tables
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+		if _, exist := validDDBOutputs[ddbOutputType]; !exist {
+			log.Fatalf("invalid output type %s only valid %v", ddbOutputType, validDDBOutputs)
+		}
 		tui := buildTUI()
 		// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
 		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
@@ -59,6 +70,7 @@ var ddbCmd = &cobra.Command{
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating session in AWS")
 		}
+		awsRegion = auth.EffectiveRegion
 
 		client, err := awsu.NewDDB(auth)
 
@@ -67,7 +79,10 @@ var ddbCmd = &cobra.Command{
 		}
 		ddb := awsu.NewDDBClient(client)
 		if *ddbListTables {
-			listDDBTables(ddb, true, *ddbIncludeGlobalTables)
+			tui.GetLoader().Start("listing dynamodb tables", "", "green")
+			if err := listDDBTables(ddb, true, *ddbIncludeGlobalTables, tui); err != nil {
+				log.WithError(err).Error("failed listing tables")
+			}
 			return
 		} else {
 
@@ -91,41 +106,107 @@ var ddbCmd = &cobra.Command{
 	},
 }
 
+func printDDBSearchOutputAsJSON(input *search.Input, output *search.Output) {
+	tablesSearched := map[string]bool{}
+	jsonTable := map[string]any{}
+	for idx, match := range output.Matches {
+		table := map[string]string{}
+		tableKey := "Table"
+		tableVal := match.TableName
+		table[tableKey] = tableVal
+		tablesSearched[match.TableName] = true
+		for k, v := range match.ObjectData {
+			val := aws.StringValue(v)
+			if sanitizeOutput != nil && *sanitizeOutput {
+				val = printer.SanitizeASCII(val)
+			}
+			table[k] = val
+		}
+		jsonTable[fmt.Sprintf("hit_%d", idx)] = table
+	}
+
+	summary := map[string]string{
+		"Total_Matches":  fmt.Sprintf("%d", len(output.Matches)),
+		"Tables_Scanned": fmt.Sprintf("%d", len(tablesSearched)),
+		"Query":          input.Value,
+	}
+
+	j := map[string]any{
+		"Hits":    jsonTable,
+		"Summary": summary,
+	}
+
+	obj, err := accessor.NewJsonContainerFromInterface("Result", j)
+	if err != nil {
+		log.WithError(err).Fatalf("failed parsing map to json container")
+	}
+	fmt.Println(printer.PrettyJson(obj.String()))
+}
 func printDDBSearchOutput(input *search.Input, output *search.Output, tui printer.TuiController[printer.Loader, printer.Table]) {
 
+	if ddbOutputType == "json" {
+		printDDBSearchOutputAsJSON(input, output)
+		return
+	}
+	tablesSearched := map[string]bool{}
+	labels := []string{}
+	table := map[string]string{}
+
 	for idx, match := range output.Matches {
-		labels := []string{fmt.Sprintf("#%d Table", idx+1)}
-		table := map[string]string{
-			fmt.Sprintf("#%d Table", idx+1): match.TableName,
-		}
+
+		tableKey := fmt.Sprintf("#%d Table", idx+1)
+		tableVal := printer.ColorHiYellow(match.TableName)
+
+		labels = append(labels, tableKey)
+		table[tableKey] = tableVal
+		tablesSearched[match.TableName] = true
 		for k, v := range match.ObjectData {
 			keyLabel := fmt.Sprintf("key.%s", k)
 			labels = append(labels, keyLabel)
-			table[keyLabel] = aws.StringValue(v)
+			val := aws.StringValue(v)
+			if sanitizeOutput != nil && *sanitizeOutput {
+				val = printer.SanitizeASCII(val)
+			}
+			table[keyLabel] = val
 		}
-		tui.GetTable().PrintInfoBox(table, labels, true)
 	}
-	tui.GetTable().PrintInfoBox(
-		map[string]string{
-			"Total Matches": fmt.Sprintf("%d", len(output.Matches)),
-			"Query":         input.Value,
-		},
-		[]string{
-			"Total Matches",
-			"Query",
-		}, true)
+	if ddbOutputType == "pretty" {
+		tui.GetTable().PrintInfoBox(table, labels, true)
+
+		tui.GetTable().PrintInfoBox(
+			map[string]string{
+				"Total Matches":  fmt.Sprintf("%d", len(output.Matches)),
+				"Tables Scanned": fmt.Sprintf("%d", len(tablesSearched)),
+				"Query":          input.Value,
+			},
+			[]string{
+				"Total Matches",
+				"Tables Scanned",
+				"Query",
+			}, true)
+	}
 }
 
-func listDDBTables(ddb awsu.DDBApi, withNonGlobal, withGlobal bool) {
-
+func listDDBTables(ddb awsu.DDBApi, withNonGlobal, withGlobal bool, tui printer.TuiController[printer.Loader, printer.Table]) error {
+	columns := []string{"#", "URL"}
+	table := map[string]string{
+		"#": "Table Name",
+	}
 	tables, err := ddb.ListCombinedTables(withNonGlobal, withGlobal)
+	tui.GetLoader().Stop()
 	if err != nil {
-		log.WithError(err).Fatalf("failed listing tables")
+		log.WithError(err).Error("failed listing tables")
+		return err
 	}
-	// TODO pretty print
-	for _, t := range tables {
-		fmt.Printf("> %s \n", t.TableName())
+	for idx, t := range tables {
+		rowNum := fmt.Sprintf("%d", idx+1)
+		columns = append(columns, rowNum)
+		url := awsu.GenerateDDBWebURL(t.TableName(), awsRegion)
+		table[rowNum] = fmt.Sprintf("%s\n%s\n", t.TableName(), printer.ColorFaint(url))
 	}
+
+	tui.GetTable().PrintInfoBox(table, columns, true)
+	return nil
 }
 
 func init() {
@@ -135,9 +216,10 @@ func init() {
 	ddbCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported")
 	ddbCmd.PersistentFlags().StringVarP(&tableNamePattern, "table", "t", "", "regex table pattern name to match")
-
+	ddbCmd.PersistentFlags().StringVarP(&ddbOutputType, "out", "o", "pretty", "output format [json, pretty]")
 	ddbFailFast = ddbCmd.Flags().Bool("fail-fast", false, "fail on first error seen")
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
 	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
 	ddbStopOnFirstMatch = ddbCmd.Flags().Bool("stop-first-match", false, "if true stop stop searching on first match found")
+	sanitizeOutput = ddbCmd.Flags().Bool("sanitize", true, "if true will remove all non-ascii charts from outputs")
 }

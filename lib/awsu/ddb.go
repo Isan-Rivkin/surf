@@ -232,3 +232,7 @@ func (ddb *DDBClient) ListAllTables() ([]string, error) {
 
 	return tables, nil
 }
+
+func GenerateDDBWebURL(table, region string) string {
+	return fmt.Sprintf("https://console.aws.amazon.com/dynamodbv2/home?region=%s#table?name=%s", region, table)
+}

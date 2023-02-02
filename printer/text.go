@@ -1,7 +1,9 @@
 package printer
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/jedib0t/go-pretty/v6/text"
 )
@@ -48,4 +50,17 @@ func TruncateText(s string, max int, delimeters string) string {
 		delimeters = " ,"
 	}
 	return s[:strings.LastIndexAny(s[:max], delimeters)] + "..."
+}
+
+func SanitizeASCII(s string) string {
+	cleanVal := strings.Map(func(r rune) rune {
+		if r > unicode.MaxASCII || r < 32 {
+			// return -1
+			return ' '
+		}
+		return r
+	}, s)
+
+	rg := regexp.MustCompile(`\s+`)
+	return rg.ReplaceAllString(cleanVal, " ")
 }

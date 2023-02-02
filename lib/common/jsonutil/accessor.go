@@ -2,11 +2,44 @@ package jsonutil
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/Jeffail/gabs/v2"
 )
+
+func NewJsonContainerFromMap(rootKey string, data map[string]string) (*gabs.Container, error) {
+	if rootKey == "" {
+		return nil, fmt.Errorf("ErrRootKeyEmptyString")
+	}
+	var buf bytes.Buffer
+
+	payload := map[string]interface{}{
+		rootKey: data,
+	}
+
+	if err := json.NewEncoder(&buf).Encode(payload); err != nil {
+		return nil, err
+	}
+	return NewJsonContainerFromBytes(buf.Bytes())
+}
+
+func NewJsonContainerFromInterface(rootKey string, data map[string]any) (*gabs.Container, error) {
+	if rootKey == "" {
+		return nil, fmt.Errorf("ErrRootKeyEmptyString")
+	}
+	var buf bytes.Buffer
+
+	payload := map[string]any{
+		rootKey: data,
+	}
+
+	if err := json.NewEncoder(&buf).Encode(payload); err != nil {
+		return nil, err
+	}
+	return NewJsonContainerFromBytes(buf.Bytes())
+}
 
 func NewJsonContainerFromReader(body io.ReadCloser) (*gabs.Container, error) {
 	buf := &bytes.Buffer{}
@@ -18,12 +51,12 @@ func NewJsonContainerFromReader(body io.ReadCloser) (*gabs.Container, error) {
 }
 
 func NewJsonContainerFromBytes(payload []byte) (*gabs.Container, error) {
-	
+
 	jsonParsed, err := gabs.ParseJSON(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing json %s", err.Error())
 	}
-	
+
 	return jsonParsed, err
 }
 
