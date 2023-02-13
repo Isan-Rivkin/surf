@@ -32,6 +32,7 @@ var (
 	tableNamePattern       string
 	ddbQuery               string
 	ddbOutputType          string
+	ddbMatchAll            *bool
 	ddbIncludeGlobalTables *bool
 	ddbListTables          *bool
 	ddbAllowAllTables      *bool
@@ -77,8 +78,12 @@ Search free text patterns inside Bytes, Binary, Protobuf, Base64 and Json format
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if !*ddbListTables {
-			if ddbQuery == "" {
-				log.Fatalf("invalid output type %s only valid %v, use --help", ddbOutputType, validDDBOutputs)
+			if !*ddbMatchAll && ddbQuery == "" {
+				log.Fatalf("invalid query input empty, use --help or --all")
+			}
+
+			if *ddbMatchAll && ddbQuery != "" {
+				log.Fatalf("invalid query input %s not empty used with --all, use --help", ddbQuery)
 			}
 
 			if _, exist := validDDBOutputs[ddbOutputType]; !exist {
@@ -87,6 +92,7 @@ Search free text patterns inside Bytes, Binary, Protobuf, Base64 and Json format
 			if !*ddbAllowAllTables && tableNamePattern == "" {
 				log.Fatal("must use --all-tables explicitly or --table <pattern> flag, use --help")
 			}
+
 		}
 		tui := buildTUI()
 		// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
@@ -110,6 +116,10 @@ Search free text patterns inside Bytes, Binary, Protobuf, Base64 and Json format
 			}
 			return
 		} else {
+
+			if *ddbMatchAll {
+				ddbQuery = "\\..*"
+			}
 
 			parallel := 30
 			m := common.NewDefaultRegexMatcher()
@@ -239,11 +249,12 @@ func init() {
 
 	ddbCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", getDefaultProfileEnvVar(), "~/.aws/credentials chosen account")
 	ddbCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
-	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported")
+	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported (if used with --all will error)")
 	ddbCmd.PersistentFlags().StringVarP(&tableNamePattern, "table", "t", "", "regex table pattern name to match")
 	ddbCmd.PersistentFlags().StringVarP(&ddbOutputType, "out", "o", "pretty", "output format [json, pretty]")
 	ddbFailFast = ddbCmd.Flags().Bool("fail-fast", false, "fail on first error seen")
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
+	ddbMatchAll = ddbCmd.Flags().Bool("all", false, "match all data (same as using -q '\\\\..*') if used with --query will error")
 	ddbIncludeGlobalTables = ddbCmd.Flags().Bool("include-global-tables", true, "if true will include global tables during search")
 	ddbStopOnFirstMatch = ddbCmd.Flags().Bool("stop-first-match", false, "if true stop stop searching on first match found")
 	sanitizeOutput = ddbCmd.Flags().Bool("sanitize", true, "if true will remove all non-ascii charts from outputs")
