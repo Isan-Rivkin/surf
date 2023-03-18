@@ -14,9 +14,27 @@ import (
 )
 
 type AuthInput struct {
-	Provider        client.ConfigProvider
-	Configs         []*aws.Config
-	EffectiveRegion string
+	Provider         client.ConfigProvider
+	Configs          []*aws.Config
+	EffectiveRegion  string
+	EffectiveProfile string
+}
+
+type AWSSessionInput struct {
+	Profile string
+	Region  string
+}
+
+func NewSessionInputMatrix(inputs []*AWSSessionInput) ([]*AuthInput, error) {
+	var out []*AuthInput
+	for _, input := range inputs {
+		auth, err := NewSessionInput(input.Profile, input.Region)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, auth)
+	}
+	return out, nil
 }
 
 func NewSessionInput(profile, region string) (*AuthInput, error) {
@@ -33,7 +51,7 @@ func NewSessionInput(profile, region string) (*AuthInput, error) {
 	}
 	conf := []*aws.Config{c}
 
-	return &AuthInput{Provider: sess, Configs: conf, EffectiveRegion: effectiveRegion}, nil
+	return &AuthInput{Provider: sess, Configs: conf, EffectiveRegion: effectiveRegion, EffectiveProfile: profile}, nil
 }
 
 func NewACM(in *AuthInput) (*acm.ACM, error) {
