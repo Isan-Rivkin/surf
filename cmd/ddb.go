@@ -39,6 +39,7 @@ var (
 	ddbStopOnFirstMatch    *bool
 	ddbFailFast            *bool
 	sanitizeOutput         *bool
+	ddbMultiAWSProfile     *[]string
 )
 
 var validDDBOutputs = map[string]bool{
@@ -61,6 +62,10 @@ Search free text patterns inside Bytes, Binary, Protobuf, Base64 and Json format
 === use -p for aws profile, -r for region ===
 
 	$surf ddb -q val -t table -p my-aws-profile -r us-east-1
+
+===	 use --aws-sessiohn to search multiple aws profiles/region ===
+
+	$surf ddb -t table -q val --aws-session "profile1,region2" --aws-session "profile2,region3"
 
 === search all tables with production in their name, where the data containing the pattern val ===
 
@@ -95,48 +100,59 @@ Search free text patterns inside Bytes, Binary, Protobuf, Base64 and Json format
 
 		}
 		tui := buildTUI()
-		// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
-		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
+
+		sessionInputs, err := resolveAWSSessions(ddbMultiAWSProfile, awsProfile, awsRegion)
+		if err != nil {
+			log.WithError(err).Fatalf("failed building input for AWS session")
+		}
+		auths, err := awsu.NewSessionInputMatrix(sessionInputs)
 
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating session in AWS")
 		}
-		awsRegion = auth.EffectiveRegion
 
-		client, err := awsu.NewDDB(auth)
+		for _, auth := range auths {
 
-		if err != nil {
-			log.WithError(err).Fatalf("failed creating ddb session")
-		}
-		ddb := awsu.NewDDBClient(client)
-		if *ddbListTables {
-			tui.GetLoader().Start("listing dynamodb tables", "", "green")
-			if err := listDDBTables(ddb, true, *ddbIncludeGlobalTables, tui); err != nil {
-				log.WithError(err).Error("failed listing tables")
-			}
-			return
-		} else {
+			// MARSHAL ATTRIBUTES UTILITY https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/dynamodbattribute/
+			//auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
-			if *ddbMatchAll {
-				ddbQuery = "\\..*"
-			}
+			awsRegion = auth.EffectiveRegion
 
-			parallel := 30
-			m := common.NewDefaultRegexMatcher()
-			p := search.NewParserFactory()
-			s := search.NewSearcher[awsu.DDBApi, common.Matcher](ddb, m, p)
-			i, err := search.NewSearchInput(tableNamePattern, ddbQuery, *ddbFailFast, *ddbIncludeGlobalTables, *ddbStopOnFirstMatch, search.ObjectMatch, parallel)
-			if err != nil {
-				log.WithError(err).Error("failed creating search input")
-			}
-			tui.GetLoader().Start("searching dynamodb", "", "green")
-			output, err := s.Search(i)
-			tui.GetLoader().Stop()
+			client, err := awsu.NewDDB(auth)
 
 			if err != nil {
-				log.WithError(err).Fatalf("failed running search on dynamodb")
+				log.WithError(err).Fatalf("failed creating ddb session")
 			}
-			printDDBSearchOutput(i, output, tui)
+			ddb := awsu.NewDDBClient(client)
+			if *ddbListTables {
+				tui.GetLoader().Start("listing dynamodb tables", "", "green")
+				if err := listDDBTables(ddb, true, *ddbIncludeGlobalTables, tui); err != nil {
+					log.WithError(err).Error("failed listing tables")
+				}
+				return
+			} else {
+
+				if *ddbMatchAll {
+					ddbQuery = "\\..*"
+				}
+
+				parallel := 30
+				m := common.NewDefaultRegexMatcher()
+				p := search.NewParserFactory()
+				s := search.NewSearcher[awsu.DDBApi, common.Matcher](ddb, m, p)
+				i, err := search.NewSearchInput(tableNamePattern, ddbQuery, *ddbFailFast, *ddbIncludeGlobalTables, *ddbStopOnFirstMatch, search.ObjectMatch, parallel)
+				if err != nil {
+					log.WithError(err).Error("failed creating search input")
+				}
+				tui.GetLoader().Start("searching dynamodb", "", "green")
+				output, err := s.Search(i)
+				tui.GetLoader().Stop()
+
+				if err != nil {
+					log.WithError(err).Fatalf("failed running search on dynamodb")
+				}
+				printDDBSearchOutput(i, output, tui)
+			}
 		}
 	},
 }
@@ -176,6 +192,7 @@ func printDDBSearchOutputAsJSON(input *search.Input, output *search.Output) {
 		log.WithError(err).Fatalf("failed parsing map to json container")
 	}
 	fmt.Println(printer.PrettyJson(obj.String()))
+
 }
 func printDDBSearchOutput(input *search.Input, output *search.Output, tui printer.TuiController[printer.Loader, printer.Table]) {
 
@@ -252,6 +269,7 @@ func init() {
 	ddbCmd.PersistentFlags().StringVarP(&ddbQuery, "query", "q", "", "filter query regex supported (if used with --all will error)")
 	ddbCmd.PersistentFlags().StringVarP(&tableNamePattern, "table", "t", "", "regex table pattern name to match")
 	ddbCmd.PersistentFlags().StringVarP(&ddbOutputType, "out", "o", "pretty", "output format [json, pretty]")
+	ddbMultiAWSProfile = ddbCmd.PersistentFlags().StringArray("aws-session", []string{}, "search in multiple aws profiles & regions (comma separated: --aws-session default,us-east-1 --aws-session dev-account,us-west-2) - overrides --profile and --region")
 	ddbFailFast = ddbCmd.Flags().Bool("fail-fast", false, "fail on first error seen")
 	ddbListTables = ddbCmd.Flags().Bool("list-tables", false, "list all available tables")
 	ddbMatchAll = ddbCmd.Flags().Bool("all", false, "match all data (same as using -q '\\\\..*') if used with --query will error")

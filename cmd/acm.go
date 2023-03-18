@@ -30,6 +30,7 @@ import (
 )
 
 var (
+	acmMultiAWSProfile         *[]string
 	awsRegion                  string
 	filterQuery                string
 	acmFilterDomains           *bool
@@ -55,139 +56,156 @@ var acmCmd = &cobra.Command{
 	- Certificate ID 
 
 	surf acm -q some-acm-id --filter-id
+
+	- Multiple AWS Profiles/Regions 
+
+	surf acm -q my-comain.com --aws-session profile1,region1 --aws-session profile2,region2
+	
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
-		auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
+
+		sessionInputs, err := resolveAWSSessions(acmMultiAWSProfile, awsProfile, awsRegion)
+		if err != nil {
+			log.WithError(err).Fatalf("failed building input for AWS session")
+		}
+		auths, err := awsu.NewSessionInputMatrix(sessionInputs)
 
 		if err != nil {
-			log.Fatalf("failed creating session in AWS %s", err.Error())
+			log.WithError(err).Fatalf("failed creating session in AWS")
 		}
+		for _, auth := range auths {
+			// auth, err := awsu.NewSessionInput(awsProfile, awsRegion)
 
-		acmClient, err := awsu.NewACM(auth)
-
-		if err != nil {
-			log.Fatalf("failed creating ACM client %s", err.Error())
-		}
-
-		api := awsu.NewAcmClient(acmClient)
-		parallel := 30
-		m := search.NewDefaultRegexMatcher()
-
-		tui.GetLoader().Start("searching acm", "", "green")
-
-		result, err := api.ListAndFilter(parallel, true, func(c *acm.CertificateDetail) bool {
-			if *acmFilterAllOptions {
-				*acmFilterAttachedResources = true
-				*acmFilterDomains = true
-				*acmFilterID = true
+			if err != nil {
+				log.Fatalf("failed creating session in AWS %s", err.Error())
 			}
 
-			if *acmFilterDomains {
-				domains := aws.StringValueSlice(c.SubjectAlternativeNames)
-				for _, d := range domains {
-					if isMatch, _ := m.IsMatch(filterQuery, d); isMatch {
+			acmClient, err := awsu.NewACM(auth)
+
+			if err != nil {
+				log.Fatalf("failed creating ACM client %s", err.Error())
+			}
+
+			api := awsu.NewAcmClient(acmClient)
+			parallel := 30
+			m := search.NewDefaultRegexMatcher()
+
+			tui.GetLoader().Start("searching acm", "", "green")
+
+			result, err := api.ListAndFilter(parallel, true, func(c *acm.CertificateDetail) bool {
+				if *acmFilterAllOptions {
+					*acmFilterAttachedResources = true
+					*acmFilterDomains = true
+					*acmFilterID = true
+				}
+
+				if *acmFilterDomains {
+					domains := aws.StringValueSlice(c.SubjectAlternativeNames)
+					for _, d := range domains {
+						if isMatch, _ := m.IsMatch(filterQuery, d); isMatch {
+							return true
+						}
+					}
+				}
+				if *acmFilterAttachedResources {
+					usedBy := aws.StringValueSlice(c.InUseBy)
+					for _, arn := range usedBy {
+						if isMatch, _ := m.IsMatch(filterQuery, arn); isMatch {
+							return true
+						}
+					}
+				}
+				if *acmFilterID {
+					if isMatch, _ := m.IsMatch(filterQuery, aws.StringValue(c.CertificateArn)); isMatch {
 						return true
 					}
 				}
+				return false
+			})
+
+			tui.GetLoader().Stop()
+
+			if err != nil {
+				log.WithError(err).Fatal("failed listing acm certificates")
 			}
-			if *acmFilterAttachedResources {
-				usedBy := aws.StringValueSlice(c.InUseBy)
-				for _, arn := range usedBy {
-					if isMatch, _ := m.IsMatch(filterQuery, arn); isMatch {
-						return true
+
+			certs := result.Certificates
+			sort.SliceStable(certs, func(i, j int) bool {
+				c1 := certs[i]
+				c2 := certs[j]
+
+				c1Create := aws.TimeValue(c1.CreatedAt)
+				c2Create := aws.TimeValue(c2.CreatedAt)
+
+				return c2Create.After(c1Create)
+
+			})
+
+			for _, c := range result.Certificates {
+
+				arn := aws.StringValue(c.CertificateArn)
+				splitted := strings.Split(arn, "/")
+				id := splitted[len(splitted)-1]
+				url := awsu.GenerateACMWebURL(auth.EffectiveRegion, id)
+				status := aws.StringValue(c.Status)
+				domain := aws.StringValue(c.DomainName)
+				inUseBy := aws.StringValueSlice(c.InUseBy)
+				created := aws.TimeValue(c.CreatedAt)
+				notAfter := aws.TimeValue(c.NotAfter)
+
+				// date expiration
+
+				expireDays := time.Until(notAfter).Hours() / 24
+				// status pretty output consolidation
+				validationMethodsMapper := map[string]bool{}
+				validationStatusMapper := map[string]bool{}
+				validationMethods := ""
+				validationStatus := ""
+				if c.DomainValidationOptions != nil {
+					for _, o := range c.DomainValidationOptions {
+						m := aws.StringValue(o.ValidationMethod)
+						validationMethodsMapper[m] = true
+
+						s := aws.StringValue(o.ValidationStatus)
+						validationStatusMapper[s] = true
 					}
 				}
-			}
-			if *acmFilterID {
-				if isMatch, _ := m.IsMatch(filterQuery, aws.StringValue(c.CertificateArn)); isMatch {
-					return true
+
+				if len(validationStatusMapper) > 1 {
+					validationStatus = "Partial"
+				} else {
+					for s := range validationStatusMapper {
+						validationStatus = s
+					}
 				}
-			}
-			return false
-		})
 
-		tui.GetLoader().Stop()
-
-		if err != nil {
-			log.WithError(err).Fatal("failed listing acm certificates")
-		}
-
-		certs := result.Certificates
-		sort.SliceStable(certs, func(i, j int) bool {
-			c1 := certs[i]
-			c2 := certs[j]
-
-			c1Create := aws.TimeValue(c1.CreatedAt)
-			c2Create := aws.TimeValue(c2.CreatedAt)
-
-			return c2Create.After(c1Create)
-
-		})
-
-		for _, c := range result.Certificates {
-
-			arn := aws.StringValue(c.CertificateArn)
-			splitted := strings.Split(arn, "/")
-			id := splitted[len(splitted)-1]
-			url := awsu.GenerateACMWebURL(auth.EffectiveRegion, id)
-			status := aws.StringValue(c.Status)
-			domain := aws.StringValue(c.DomainName)
-			inUseBy := aws.StringValueSlice(c.InUseBy)
-			created := aws.TimeValue(c.CreatedAt)
-			notAfter := aws.TimeValue(c.NotAfter)
-
-			// date expiration
-
-			expireDays := time.Until(notAfter).Hours() / 24
-			// status pretty output consolidation
-			validationMethodsMapper := map[string]bool{}
-			validationStatusMapper := map[string]bool{}
-			validationMethods := ""
-			validationStatus := ""
-			if c.DomainValidationOptions != nil {
-				for _, o := range c.DomainValidationOptions {
-					m := aws.StringValue(o.ValidationMethod)
-					validationMethodsMapper[m] = true
-
-					s := aws.StringValue(o.ValidationStatus)
-					validationStatusMapper[s] = true
+				for m := range validationMethodsMapper {
+					validationMethods += m + " |"
 				}
-			}
 
-			if len(validationStatusMapper) > 1 {
-				validationStatus = "Partial"
-			} else {
-				for s := range validationStatusMapper {
-					validationStatus = s
+				labelsOrder := []string{"Domain", "URL", "Status"}
+
+				certInfo := map[string]string{
+					"Domain": domain,
+					"URL":    url,
+					"Status": status,
 				}
-			}
 
-			for m := range validationMethodsMapper {
-				validationMethods += m + " |"
-			}
-
-			labelsOrder := []string{"Domain", "URL", "Status"}
-
-			certInfo := map[string]string{
-				"Domain": domain,
-				"URL":    url,
-				"Status": status,
-			}
-
-			if getLogLevelFromVerbosity() >= log.DebugLevel {
-				labelsOrder = append(labelsOrder, []string{"Created", "Expire In", "Validation"}...)
-				certInfo["Created"] = created.String()
-				certInfo["Expire In"] = fmt.Sprintf("%d", int(expireDays))
-				certInfo["Validation"] = fmt.Sprintf("%s [%s]", validationMethods, validationStatus)
-				for i, arn := range inUseBy {
-					useByLabel := fmt.Sprintf("Used By %d", i)
-					certInfo[useByLabel] = arn
-					labelsOrder = append(labelsOrder, useByLabel)
+				if getLogLevelFromVerbosity() >= log.DebugLevel {
+					labelsOrder = append(labelsOrder, []string{"Created", "Expire In", "Validation"}...)
+					certInfo["Created"] = created.String()
+					certInfo["Expire In"] = fmt.Sprintf("%d", int(expireDays))
+					certInfo["Validation"] = fmt.Sprintf("%s [%s]", validationMethods, validationStatus)
+					for i, arn := range inUseBy {
+						useByLabel := fmt.Sprintf("Used By %d", i)
+						certInfo[useByLabel] = arn
+						labelsOrder = append(labelsOrder, useByLabel)
+					}
 				}
-			}
 
-			tui.GetTable().PrintInfoBox(certInfo, labelsOrder, false)
+				tui.GetTable().PrintInfoBox(certInfo, labelsOrder, false)
+			}
 		}
 	},
 }
@@ -198,7 +216,7 @@ func init() {
 	acmCmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", getDefaultProfileEnvVar(), "~/.aws/credentials chosen account")
 	acmCmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	acmCmd.PersistentFlags().StringVarP(&filterQuery, "query", "q", "", "filter query regex supported")
-
+	acmMultiAWSProfile = acmCmd.PersistentFlags().StringArray("aws-session", []string{}, "search in multiple aws profiles & regions (comma separated: --aws-session default,us-east-1 --aws-session dev-account,us-west-2) - overrides --profile and --region")
 	acmFilterDomains = acmCmd.PersistentFlags().Bool("filter-domains", true, "compare query input against all subject names i.e domains")
 	acmFilterID = acmCmd.PersistentFlags().Bool("filter-id", false, "compare query input against all acm arn's")
 	acmFilterAttachedResources = acmCmd.PersistentFlags().Bool("filter-used-by", false, "compare query input against arn's using the acm certificate i.e load balancer")

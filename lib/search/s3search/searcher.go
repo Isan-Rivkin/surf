@@ -126,8 +126,8 @@ func (s *DefaultSearcher[CC, Matcher]) Search(i *Input) (*Output, error) {
 						res.Keys = append(res.Keys, aws.StringValue(k.Key))
 					}
 				}
-				asyncResults <- res
 			}
+			asyncResults <- res
 		})
 	}
 
@@ -135,19 +135,17 @@ func (s *DefaultSearcher[CC, Matcher]) Search(i *Input) (*Output, error) {
 	size := len(targetBuckets)
 	counter := 1
 	for r := range asyncResults {
-		if r.Err != nil {
-			log.WithError(err).WithField("bucket", r.Bucket).Error("failed describing keys")
-			continue
-		}
+		counter++
 
-		filteredResult.BucketToMatches[r.Bucket] = r.Keys
+		if r.Err != nil {
+			log.WithError(r.Err).WithField("bucket", r.Bucket).Error("failed searching keys in bucket (potential fix: sure the target bucket is in the target region)")
+		} else {
+			filteredResult.BucketToMatches[r.Bucket] = r.Keys
+		}
 
 		if counter >= size {
 			break
 		}
-
-		counter++
 	}
-
 	return filteredResult, nil
 }
