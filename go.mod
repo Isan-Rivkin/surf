@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.42.27
 	github.com/aws/aws-sdk-go-v2/config v1.15.13
 	github.com/aws/aws-sdk-go-v2/service/cloudcontrol v1.11.6
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.27.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.1
 	github.com/briandowns/spinner v1.18.1
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
@@ -32,12 +33,12 @@ require (
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.17.6 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.17.8 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.3 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.8 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.8 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.30 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.24 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.32 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.26 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.15 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.3 // indirect
