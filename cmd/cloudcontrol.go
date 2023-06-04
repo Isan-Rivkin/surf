@@ -81,6 +81,7 @@ var cloudcontrolCmd = &cobra.Command{
 				if err != nil {
 					log.WithError(err).Fatalf("failed matching resources")
 				}
+				fmt.Printf("listing matched resource %s\n", resourceType.String())
 				_, err = api.ListResources(resourceType)
 				if err != nil {
 					log.WithError(err).Fatalf("failed listing resource %s", inputType)
@@ -107,7 +108,7 @@ func fuzzyMatchResourceTypes(input string, resourceTypes []*awsu.CCResourcePrope
 		}
 	}
 	if match == nil {
-		return nil, fmt.Errorf("no resource type matched")
+		return nil, fmt.Errorf("no match resource type")
 	}
 	return match, nil
 }

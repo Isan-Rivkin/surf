@@ -132,14 +132,21 @@ func (cc *CloudControlClient) GetResource(resource *CCResourceProperty, identifi
 
 // TODO: Add Pagination
 func (cc *CloudControlClient) ListResources(resource *CCResourceProperty) (*CCResourcesList, error) {
-	resp, err := cc.client().ListResources(context.Background(), &cloudcontrol.ListResourcesInput{
+	input := &cloudcontrol.ListResourcesInput{
 		TypeName: aws.String(resource.String()),
-	})
-	if err != nil {
-		return nil, err
 	}
-	for _, r := range resp.ResourceDescriptions {
-		log.Infof("Resource: %s Props %s", *r.Identifier, *r.Properties)
+	for {
+		resp, err := cc.client().ListResources(context.Background(), input)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range resp.ResourceDescriptions {
+			log.Infof("Resource: %s Props %s", *r.Identifier, *r.Properties)
+		}
+		if resp.NextToken == nil {
+			break
+		}
+		input.NextToken = resp.NextToken
 	}
 	return nil, nil
 	// return NewResourceFromListOutput(resp, resource), nil
