@@ -63,8 +63,8 @@ func createFile(args map[string]interface{}) {
 }
 
 func main() {
-	log.Info("running generate haha")
-	auth, err := awsu.NewSessionInput("default", "us-east-1")
+	log.Info("running code generation for cloudformation resources")
+	auth, err := awsu.NewSessionInput("", "")
 	if err != nil {
 		panic(fmt.Errorf("creating session in AWS: %w", err))
 	}
