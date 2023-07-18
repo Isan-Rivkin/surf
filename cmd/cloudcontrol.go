@@ -42,13 +42,13 @@ var cloudcontrolCmd = &cobra.Command{
 			if err != nil {
 				log.WithError(err).Fatalf("failed creating cloudcontrol client")
 			}
-			cfClient, err := awsu.NewCloudFormation(auth)
+			// cfClient, err := awsu.NewCloudFormation(auth)
 
-			if err != nil {
-				log.WithError(err).Fatalf("failed creating cloudformation (helper) client")
-			}
+			// if err != nil {
+			// 	log.WithError(err).Fatalf("failed creating cloudformation (helper) client")
+			// }
 
-			api := awsu.NewCloudControlAPIWithDynamicResources(ccClient, cfClient)
+			api := awsu.NewCloudControlAPI(ccClient)
 
 			action := strings.ToLower(args[0])
 			inputType, _ := cmd.Flags().GetString("type")

@@ -73,8 +73,7 @@ func (cf *CloudFormationClient) client() *cloudformation.Client {
 func (cf *CloudFormationClient) getTypes(pType cftypes.ProvisioningType) ([]cftypes.TypeSummary, error) {
 	var result []cftypes.TypeSummary
 	paginator := cloudformation.NewListTypesPaginator(cf.client(), &cloudformation.ListTypesInput{
-		Visibility: cftypes.VisibilityPublic,
-		// TODO: also fetch use IMMUTABALE
+		Visibility:       cftypes.VisibilityPublic,
 		ProvisioningType: pType,
 	})
 

@@ -2,6 +2,9 @@
 builds: 
   -
     binary: surf
+    hooks:
+      pre: go generate ./...
+      
 brews:
   -
     name: surf

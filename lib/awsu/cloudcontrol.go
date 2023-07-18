@@ -87,6 +87,13 @@ type CloudControlClient struct {
 	Resources []*CCResourceProperty
 }
 
+func NewCloudControlAPI(c *cloudcontrol.Client) CloudControlAPI {
+	return &CloudControlClient{
+		c:         c,
+		Resources: NewCloudControlResourcesFromGeneratedCode(),
+	}
+}
+
 func NewCloudControlAPIWithDynamicResources(c *cloudcontrol.Client, cf *cloudformation.Client) CloudControlAPI {
 	// TODO unify Ctor of CC API no need for all this here,  make resources external dependency
 	resp, err := NewCloudFormationAPI(cf).GetAllSupportedCloudControlAPIResources()
@@ -103,12 +110,13 @@ func NewCloudControlAPIWithDynamicResources(c *cloudcontrol.Client, cf *cloudfor
 	}
 }
 
-func NewCloudControlAPI(c *cloudcontrol.Client) CloudControlAPI {
-	return &CloudControlClient{
-		c:         c,
-		Resources: NewCCResources(),
-	}
-}
+// TODO: remove this and usage of NewCCResources
+// func NewCloudControlAPI(c *cloudcontrol.Client) CloudControlAPI {
+// 	return &CloudControlClient{
+// 		c:         c,
+// 		Resources: NewCCResources(),
+// 	}
+// }
 
 func (cc *CloudControlClient) client() *cloudcontrol.Client {
 	return cc.c
@@ -130,7 +138,7 @@ func (cc *CloudControlClient) GetResource(resource *CCResourceProperty, identifi
 	return NewResourceFromGetOutput(resp, resource), nil
 }
 
-// TODO: Add Pagination
+// TODO: make this function really return the type not nils
 func (cc *CloudControlClient) ListResources(resource *CCResourceProperty) (*CCResourcesList, error) {
 	input := &cloudcontrol.ListResourcesInput{
 		TypeName: aws.String(resource.String()),
