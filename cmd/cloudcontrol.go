@@ -82,9 +82,16 @@ var cloudcontrolCmd = &cobra.Command{
 					log.WithError(err).Fatalf("failed matching resources")
 				}
 				fmt.Printf("listing matched resource %s\n", resourceType.String())
-				_, err = api.ListResources(resourceType)
+				resourceList, err := api.ListResources(resourceType)
 				if err != nil {
 					log.WithError(err).Fatalf("failed listing resource %s", inputType)
+				}
+				for _, r := range resourceList.Resources {
+					id, err := r.GetIdentifier()
+					if err != nil {
+						panic(fmt.Errorf("failed parsing identifier %s", err))
+					}
+					fmt.Printf("ID: %s\nProperties: %s\n", id, r.GetRawProperties())
 				}
 			default:
 				log.Fatalf("unknown action %s", action)

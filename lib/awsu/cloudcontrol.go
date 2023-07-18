@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudcontrol"
+	cctypes "github.com/aws/aws-sdk-go-v2/service/cloudcontrol/types"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go/aws"
 	log "github.com/sirupsen/logrus"
@@ -12,17 +13,20 @@ import (
 
 type CCResourceDescriber interface {
 	IsDescribed() bool
+	IsShallowDescribe() bool
 	GetType() *CCResourceProperty
 	GetTypeName() string
 	GetIdentifier() (string, error)
 	GetRawDescribed() *cloudcontrol.GetResourceOutput
+	GetRawShallowDescribed() *cctypes.ResourceDescription
 	GetRawProperties() string
 }
 
 // CCResourceWrapper implementeds CCResourceDescriber interface
 type CCResourceWrapper struct {
-	RawResource *cloudcontrol.GetResourceOutput
-	Type        *CCResourceProperty
+	RawResource     *cloudcontrol.GetResourceOutput
+	RawResourceList *cctypes.ResourceDescription
+	Type            *CCResourceProperty
 }
 
 func NewResourceFromGetOutput(output *cloudcontrol.GetResourceOutput, inputType *CCResourceProperty) CCResourceDescriber {
@@ -30,14 +34,18 @@ func NewResourceFromGetOutput(output *cloudcontrol.GetResourceOutput, inputType 
 		RawResource: output,
 		Type:        inputType,
 	}
-}
 
-func NewResourceFromListOutput(output *cloudcontrol.ListResourcesOutput, inputType *CCResourceProperty) CCResourceDescriber {
-	return nil
-	// return &CCResourceWrapper{
-	// 	RawResource: output,
-	// 	Type:        inputType,
-	// }
+}
+func NewResourceFromListOutput(output *cloudcontrol.ListResourcesOutput, inputType *CCResourceProperty) []CCResourceDescriber {
+	var resources []CCResourceDescriber
+	for _, r := range output.ResourceDescriptions {
+		capture := r
+		resources = append(resources, &CCResourceWrapper{
+			RawResourceList: &capture,
+			Type:            inputType,
+		})
+	}
+	return resources
 }
 
 type CCResourcesList struct {
@@ -48,8 +56,16 @@ func (cc *CCResourceWrapper) GetRawDescribed() *cloudcontrol.GetResourceOutput {
 	return cc.RawResource
 }
 
+func (cc *CCResourceWrapper) GetRawShallowDescribed() *cctypes.ResourceDescription {
+	return cc.RawResourceList
+}
+
 func (cc *CCResourceWrapper) IsDescribed() bool {
 	return cc.RawResource != nil
+}
+
+func (cc *CCResourceWrapper) IsShallowDescribe() bool {
+	return cc.RawResourceList != nil
 }
 
 func (cc *CCResourceWrapper) GetType() *CCResourceProperty {
@@ -66,14 +82,20 @@ func (cc *CCResourceWrapper) GetIdentifier() (string, error) {
 	if cc.IsDescribed() {
 		return aws.StringValue(cc.RawResource.ResourceDescription.Identifier), nil
 	}
+	if cc.IsShallowDescribe() {
+		return aws.StringValue(cc.RawResourceList.Identifier), nil
+	}
 	return "", fmt.Errorf("resource not described")
 }
 
 func (cc *CCResourceWrapper) GetRawProperties() string {
-	if !cc.IsDescribed() {
-		return ""
+	if cc.IsDescribed() {
+		return aws.StringValue(cc.GetRawDescribed().ResourceDescription.Properties)
 	}
-	return aws.StringValue(cc.GetRawDescribed().ResourceDescription.Properties)
+	if cc.IsShallowDescribe() {
+		return aws.StringValue(cc.RawResourceList.Properties)
+	}
+	return ""
 }
 
 type CloudControlAPI interface {
@@ -143,19 +165,20 @@ func (cc *CloudControlClient) ListResources(resource *CCResourceProperty) (*CCRe
 	input := &cloudcontrol.ListResourcesInput{
 		TypeName: aws.String(resource.String()),
 	}
+	var result []CCResourceDescriber
 	for {
 		resp, err := cc.client().ListResources(context.Background(), input)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listing resources: %w", err)
 		}
+		result = append(result, NewResourceFromListOutput(resp, resource)...)
 		for _, r := range resp.ResourceDescriptions {
-			log.Infof("Resource: %s Props %s", *r.Identifier, *r.Properties)
+			log.Debugf("Resource: %s Props %s", *r.Identifier, *r.Properties)
 		}
 		if resp.NextToken == nil {
 			break
 		}
 		input.NextToken = resp.NextToken
 	}
-	return nil, nil
-	// return NewResourceFromListOutput(resp, resource), nil
+	return &CCResourcesList{Resources: result}, nil
 }
