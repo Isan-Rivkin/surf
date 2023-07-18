@@ -1,3 +1,4 @@
+
 # SURF
 
 Free Text Search across your infrastructure platforms via CLI.
@@ -12,6 +13,7 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 # Supported Platforms
 
 - [X] [AWS Route53 and Targets](https://github.com/Isan-Rivkin/route53-cli)
+- [X] [AWS CloudControl](https://aws.amazon.com/cloudcontrolapi/)
 - [X] [AWS ACM](https://aws.amazon.com/certificate-manager/)
 - [X] [AWS S3](https://aws.amazon.com/s3/)
 - [X] [AWS DynamoDB](https://aws.amazon.com/dynamodb/)
@@ -23,24 +25,29 @@ S.U.R.F is an acronym for: `Search-Unified-Recursive-Fast`
 
 # Table of Contents 
 
+- [SURF](#surf)
+- [Supported Platforms](#supported-platforms)
+- [Table of Contents](#table-of-contents)
 - [Overview](#overview)
-- [Examples](#usage-examples)
-  * [AWS Route53 Usage](#aws-route53-usage)
-  * [AWS ACM Usage](#aws-acm-usage)
-  * [AWS DynamoDB Usage](#aws-dynamodb-usage)
-  * [AWS S3 Usage](#aws-s3-usage)
-  * [Hashicorp Vault Usage](#hashicorp-vault-usage)
-  * [Hashicorp Consul Usage](#hashicorp-consul-usage)
-  * [ElasticSearch / OpenSearch Usage](#elasticsearch-and-opensearch-usage)
-  * [Logz.io Usage](#logzio-usage)
+- [Usage Examples](#usage-examples)
+  - [AWS Route53 Usage](#aws-route53-usage)
+  - [AWS Cloud Control Usage](#aws-cloud-control-usage)
+  - [AWS ACM Usage](#aws-acm-usage)
+  - [AWS DynamoDB Usage](#aws-dynamodb-usage)
+  - [AWS S3 Usage](#aws-s3-usage)
+  - [Hashicorp Vault Usage](#hashicorp-vault-usage)
+  - [Hashicorp Consul Usage](#hashicorp-consul-usage)
+  - [ElasticSearch and OpenSearch Usage](#elasticsearch-and-opensearch-usage)
+  - [Logz.io Usage](#logzio-usage)
 - [Install](#install)
-    + [Brew](#brew)
-    + [Download Binary](#download-binary)
-    + [Install from Source](#install-from-source)
+    - [Brew](#brew)
+    - [Download Binary](#download-binary)
+    - [Install from Source](#install-from-source)
 - [Authentication](#authentication)
-  * [Supported Authentication Methods](#supported-authentication-methods)
+  - [Supported Authentication Methods](#supported-authentication-methods)
 - [Version check](#version-check)
 - [How it Works](#how-it-works)
+- [Contributors](#contributors)
 
 # Overview
 
@@ -59,6 +66,20 @@ Based on [AWS Route53](https://github.com/Isan-Rivkin/route53-cli): Search what'
 ```bash 
 surf r53 -q api.my-corp.com
 ```
+
+## AWS Cloud Control Usage 
+
+Cloud Control API allows searching across AWS resources in a resource agnostic manner. 
+All resource types has CRUD and based on REST so we can list, get, create, delete.
+
+The Supported resource types are auto generated into the code during every build see [cloudformation_resources.gen.go](./lib/awsu/cloudformationgenerated/cloudformation_resources.gen.go).
+
+**List Supported resource types**
+
+```bash
+surf aws types
+```
+
 
 ## AWS ACM Usage 
 

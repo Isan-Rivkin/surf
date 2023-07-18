@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudcontrol"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
@@ -83,4 +85,28 @@ func NewDDB(in *AuthInput) (*dynamodb.DynamoDB, error) {
 		return nil, fmt.Errorf("failed initiating dynamodb instance")
 	}
 	return ddb, nil
+}
+
+func NewCloudControl(in *AuthInput) (*cloudcontrol.Client, error) {
+	conf, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(in.EffectiveRegion))
+	if err != nil {
+		return nil, fmt.Errorf("failed loading aws config %s", err.Error())
+	}
+	cc := cloudcontrol.NewFromConfig(conf)
+	if cc == nil {
+		return nil, fmt.Errorf("failed creating cloudcontrol client")
+	}
+	return cc, nil
+}
+
+func NewCloudFormation(in *AuthInput) (*cloudformation.Client, error) {
+	conf, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(in.EffectiveRegion))
+	if err != nil {
+		return nil, fmt.Errorf("failed loading aws config %s", err.Error())
+	}
+	cf := cloudformation.NewFromConfig(conf)
+	if cf == nil {
+		return nil, fmt.Errorf("failed creating cloudformation client")
+	}
+	return cf, nil
 }
