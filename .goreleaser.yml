@@ -2,9 +2,10 @@
 builds: 
   -
     binary: surf
-    hooks:
-      pre: go generate ./...
-      
+    # TODO add AWS credentials before can generate
+    # hooks:
+    #   pre: go generate ./...
+
 brews:
   -
     name: surf

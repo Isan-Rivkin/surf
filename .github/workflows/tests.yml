@@ -18,9 +18,10 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.18
-
-    - name: Generate
-      run: go generate -v ./...
+    
+    # TODO add AWS credentials to generate 
+    # - name: Generate
+    #   run: go generate -v ./...
 
     - name: Build
       run: go build -v ./...
