@@ -4,6 +4,7 @@ Copyright © 2023 Isan Rivkin isanrivkin@gmail.com
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -51,38 +52,43 @@ func fuzzyMatchResourceTypes(input string, resourceTypes []*awsu.CCResourcePrope
 	return matches, nil
 }
 
-func setupCommonCloudInitAWSFlags(cmd *cobra.Command) {
+func setupCommonCloudControlAWSFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVarP(&awsProfile, "profile", "p", getDefaultProfileEnvVar(), "~/.aws/credentials chosen account")
 	cmd.PersistentFlags().StringVarP(&awsRegion, "region", "r", "", "~/.aws/config default region if empty")
 	cloudcontrolCmdMultiAWSProfile = cmd.PersistentFlags().StringArray("aws-session", []string{}, "search in multiple aws profiles & regions (comma separated: --aws-session default,us-east-1 --aws-session dev-account,us-west-2) - overrides --profile and --region")
 }
-func setupCommonCloudInitFlags(cmd *cobra.Command) {
-	setupCommonCloudInitAWSFlags(cmd)
+func setupExactTypeCommonFields(cmd *cobra.Command) {
+	setupCommonCloudControlAWSFlags(cmd)
 	cmd.Flags().String("type", "", "list resource instances of given type (usage: --type AWS::DynamoDB::Table --type AWS::EC2::VPC)")
 	cmd.Flags().Bool("exact", false, "exact match resource type no fuzzy matching")
 }
 
+func withAdditionalFieldsFlag(cmd *cobra.Command) {
+	cmd.Flags().StringArrayP("additional", "a", []string{}, "set additional required fields for search (usage: -a 'ClusterName=my-cluster' -a 'Field2=Value2')")
+}
 func init() {
 	rootCmd.AddCommand(cloudcontrolCmd)
+	cloudcontrolCmd.PersistentFlags().Bool("json", false, "Output in JSON format")
 
 	// init list types sub command
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdListTypes)
 
 	// init list sub command
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdList)
-	setupCommonCloudInitFlags(cloudcontrolCmdList)
-	cloudcontrolCmdList.Flags().StringArrayP("additional", "a", []string{}, "set additional required fields for search (usage: -p 'ClusterName=my-cluster' -p 'Field2=Value2')")
+	setupExactTypeCommonFields(cloudcontrolCmdList)
+	withAdditionalFieldsFlag(cloudcontrolCmdList)
 	// init get sub command
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdGet)
-	setupCommonCloudInitFlags(cloudcontrolCmdGet)
+	setupExactTypeCommonFields(cloudcontrolCmdGet)
 	cloudcontrolCmdGet.Flags().String("id", "", "describe resource via identifier (usage: --id <identifier>)")
 
 	// init search sub command
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdSearch)
 	cloudcontrolCmdSearch.Flags().StringP("query", "q", "", "search query (usage: --query 'my-vpc')")
 	cloudcontrolCmdSearch.Flags().StringArrayP("type", "t", []string{}, "search resource types (usage: -t vpc -t 'ec2')")
-	cloudcontrolCmdSearch.Flags().StringArrayP("additional", "a", []string{}, "set additional required fields for search (usage: -p 'ClusterName=my-cluster' -p 'Field2=Value2')")
-	setupCommonCloudInitAWSFlags(cloudcontrolCmdSearch)
+	withAdditionalFieldsFlag(cloudcontrolCmdSearch)
+	cloudcontrolCmdSearch.Flags().Bool("fail-on-err", false, "Fail on first resources error, otherwise keep searching")
+	setupCommonCloudControlAWSFlags(cloudcontrolCmdSearch)
 }
 
 func searchResourceInstance(api awsu.CloudControlAPI, query string, resourceType *awsu.CCResourceProperty, additionalFields map[string]string) ([]awsu.CCResourceDescriber, error) {
@@ -152,6 +158,10 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-clo
 	Run: func(cmd *cobra.Command, args []string) {
 		tui := buildTUI()
 		defer tui.GetLoader().Stop()
+		isJson, err := cmd.Flags().GetBool("json")
+		if err != nil {
+			log.WithError(err).Fatalf("failed getting json flag")
+		}
 		q, err := cmd.Flags().GetString("query")
 		if err != nil {
 			log.WithError(err).Fatalf("failed getting query")
@@ -169,6 +179,10 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-clo
 		additionalFields, err := cmd.Flags().GetStringArray("additional")
 		if err != nil {
 			log.WithError(err).Fatalf("failed getting additional fields")
+		}
+		failOnErr, err := cmd.Flags().GetBool("fail-on-err")
+		if err != nil {
+			log.WithError(err).Fatalf("failed getting fail-on-err")
 		}
 		additionalFieldsMap := map[string]string{}
 		for _, f := range additionalFields {
@@ -188,7 +202,9 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-clo
 			log.WithError(err).Fatalf("failed creating session in AWS")
 		}
 		var allResults []*awsResourceSearchResult
+		var allErrs []error
 		for _, auth := range auths {
+
 			ccClient, err := awsu.NewCloudControl(auth)
 
 			if err != nil {
@@ -204,6 +220,7 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-clo
 					log.WithError(err).Warnf("failed matching '%s' resource, skipping", inputType)
 					continue
 				}
+
 				for _, matchedType := range matchedTypes {
 					tui.GetLoader().Stop()
 					if matchedType.Score >= awsu.ServiceMatch {
@@ -211,7 +228,18 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-clo
 						results, err := searchResourceInstance(api, q, matchedType.Resource, additionalFieldsMap)
 						if err != nil {
 							tui.GetLoader().Stop()
-							log.WithError(err).Fatalf("failed searching in '%s' q='%s'", matchedType.Resource.String(), q)
+							if failOnErr {
+								log.WithError(err).Fatalf("failed searching in '%s' q='%s'", matchedType.Resource.String(), q)
+							}
+							errMsg := fmt.Errorf("resource %s: %w", matchedType.Resource.String(), err)
+							if len(auths) > 1 {
+								errMsg = fmt.Errorf("auth: %s-%s %w", auth.EffectiveProfile, auth.EffectiveRegion, errMsg)
+							}
+							if errors.Is(err, awsu.ErrMissingRequiredField) {
+								errMsg = fmt.Errorf("try using --additional flag :%w", errMsg)
+							}
+							allErrs = append(allErrs, errMsg)
+							continue
 						}
 						for _, r := range results {
 							allResults = append(allResults, &awsResourceSearchResult{Auth: auth, ResourceType: matchedType.Resource, Resource: r})
@@ -221,17 +249,54 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-clo
 				tui.GetLoader().Stop()
 			}
 			tui.GetLoader().Stop()
-			cols := []string{"Account", "Type", "ID", "Resource"}
+		}
+		// print as json
+		if isJson {
+			jsonOutput := map[string]any{
+				"errors":  []string{},
+				"matches": []map[string]any{},
+			}
 			for _, r := range allResults {
 				rid, _ := r.Resource.GetIdentifier()
-				info := map[string]string{
-					"Account":  r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
-					"Type":     r.ResourceType.String(),
-					"ID":       rid,
-					"Resource": r.Resource.GetRawProperties(),
-				}
-				tui.GetTable().PrintInfoBox(info, cols, true)
+				jsonOutput["matches"] = append(jsonOutput["matches"].([]map[string]any), map[string]any{
+					"account":  r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
+					"type":     r.ResourceType.String(),
+					"id":       rid,
+					"resource": r.Resource.GetRawProperties(),
+				})
 			}
+			for _, e := range allErrs {
+				jsonOutput["errors"] = append(jsonOutput["errors"].([]string), e.Error())
+			}
+			container, err := accessor.NewJsonContainerFromInterface("result", jsonOutput)
+			if err != nil {
+				log.WithError(err).Fatalf("failed creating json container")
+			}
+			fmt.Println(container.String())
+			return
+		}
+		// print as table
+		cols := []string{"Account", "Type", "ID", "Resource"}
+		for _, r := range allResults {
+			rid, _ := r.Resource.GetIdentifier()
+			info := map[string]string{
+				"Account":  r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
+				"Type":     r.ResourceType.String(),
+				"ID":       rid,
+				"Resource": r.Resource.GetRawProperties(),
+			}
+			tui.GetTable().PrintInfoBox(info, cols, true)
+		}
+		if len(allErrs) > 0 {
+			errRows := []string{"Errors"}
+			info := map[string]string{
+				"Errors": fmt.Sprintf("summary of %d errors in total", len(allErrs)),
+			}
+			for idx, e := range allErrs {
+				errRows = append(errRows, fmt.Sprintf("%d", idx+1))
+				info[fmt.Sprintf("%d", idx+1)] = e.Error()
+			}
+			tui.GetTable().PrintInfoBox(info, errRows, true)
 		}
 	},
 }
@@ -276,12 +341,22 @@ var cloudcontrolCmdGet = &cobra.Command{
 			if err != nil {
 				log.WithError(err).Fatalf("failed matching resources")
 			}
+			highScoreMatches := []string{}
+			for _, rt := range resourceTypes {
+				if rt.Score >= awsu.ServiceMatch {
+					highScoreMatches = append(highScoreMatches, rt.Resource.String())
+				}
+			}
+			if len(highScoreMatches) > 1 {
+				log.Fatalf("multiple valid matches found, please use exact type: '%s'", strings.Join(highScoreMatches, ", "))
+			}
 			resourceType := resourceTypes[0].Resource
 			result, err := api.GetResource(resourceType, rID)
 
 			if err != nil {
-				log.WithError(err).Fatalf("failed getting resource %s", rID)
+				log.WithError(err).Fatalf("failed getting resource '%s' id '%s'", resourceType, rID)
 			}
+			// always json output
 			fmt.Println(result.GetRawProperties())
 		}
 	},
@@ -291,14 +366,38 @@ var cloudcontrolCmdGet = &cobra.Command{
 
 var cloudcontrolCmdListTypes = &cobra.Command{
 	Use:   "list-types",
-	Short: "List Supported resources",
+	Short: "List Supported resources and additional required fields",
 	Long:  `List supported resource types`,
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		api := awsu.NewCloudControlAPI(nil)
-		for _, r := range api.ListSupportedResourceTypes() {
-			fmt.Println(r)
+		isJson, err := cmd.Flags().GetBool("json")
+		if err != nil {
+			log.WithError(err).Fatalf("failed getting json flag")
 		}
+		api := awsu.NewCloudControlAPI(nil)
+		schemas := api.GetResourceTypesSchemas()
+		jsonOutput := map[string]any{}
+		for _, r := range api.ListSupportedResourceTypes() {
+			s := schemas[r.String()]
+			additionalFields := ""
+			if !isJson {
+				if len(s.AdditionalRequiredFields) > 0 {
+					additionalFields = strings.Join(s.AdditionalRequiredFields, ", ")
+					fmt.Printf("%s | Extra_Fields_Required: %s\n", r.String(), additionalFields)
+				} else {
+					fmt.Println(r.String())
+				}
+			} else {
+				jsonOutput[r.String()] = map[string][]string{
+					"additional_required_fields": s.AdditionalRequiredFields,
+				}
+			}
+		}
+		container, err := accessor.NewJsonContainerFromInterface("resources", jsonOutput)
+		if err != nil {
+			log.WithError(err).Fatalf("failed creating json container")
+		}
+		fmt.Println(container.String())
 	},
 }
 
@@ -308,6 +407,10 @@ var cloudcontrolCmdList = &cobra.Command{
 	Long:  `List Existing AWS resources supported`,
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		isJson, err := cmd.Flags().GetBool("json")
+		if err != nil {
+			log.WithError(err).Fatalf("failed getting json flag")
+		}
 		additionalFields, err := cmd.Flags().GetStringArray("additional")
 		if err != nil {
 			log.WithError(err).Fatalf("failed getting additional fields")
@@ -329,7 +432,7 @@ var cloudcontrolCmdList = &cobra.Command{
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating session in AWS")
 		}
-
+		allResults := []*awsResourceSearchResult{}
 		for _, auth := range auths {
 			ccClient, err := awsu.NewCloudControl(auth)
 
@@ -349,18 +452,60 @@ var cloudcontrolCmdList = &cobra.Command{
 				log.WithError(err).Fatalf("failed matching resources")
 			}
 			resourceType := resourceTypes[0].Resource
-			fmt.Printf("listing matched resource %s\n", resourceType.String())
+			log.Infof("listing matched resource %s", resourceType.String())
 			resourceList, err := api.ListResources(resourceType, additionalFieldsMap)
 			if err != nil {
 				log.WithError(err).Fatalf("failed listing resource %s", inputType)
 			}
 			for _, r := range resourceList.Resources {
-				id, err := r.GetIdentifier()
-				if err != nil {
-					panic(fmt.Errorf("parsing identifier %s", err))
-				}
-				fmt.Printf("ID: %s\nProperties: %s\n", id, r.GetRawProperties())
+				allResults = append(allResults, &awsResourceSearchResult{Auth: auth, ResourceType: resourceType, Resource: r})
 			}
+		}
+		// print as json
+		if isJson {
+			jsonOut := []map[string]any{}
+			for _, r := range allResults {
+				r.Resource.GetRawProperties()
+				rid, err := r.Resource.GetIdentifier()
+				if err != nil {
+					log.WithError(err).Fatalf("failed getting resource identifier")
+				}
+				properties, err := accessor.NewJsonContainerFromBytes([]byte(r.Resource.GetRawProperties()))
+				if err != nil {
+					log.WithError(err).Fatalf("failed parsing resource properties")
+				}
+				jsonOut = append(jsonOut, map[string]any{
+					"account":    r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
+					"type":       r.ResourceType.String(),
+					"id":         rid,
+					"properties": properties,
+				})
+			}
+
+			container, err := accessor.NewJsonContainerFromInterface("result", map[string]any{
+				"resources": jsonOut,
+			})
+			if err != nil {
+				log.WithError(err).Fatalf("failed creating json container")
+			}
+			fmt.Println(container.String())
+			return
+		}
+		// print as table
+		cols := []string{"Account", "Type", "ID", "Resource"}
+		tui := buildTUI()
+		for _, r := range allResults {
+			rid, err := r.Resource.GetIdentifier()
+			if err != nil {
+				log.WithError(err).Fatalf("failed getting resource identifier")
+			}
+			tableInfo := map[string]string{
+				"Account":  r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
+				"Type":     r.ResourceType.String(),
+				"ID":       rid,
+				"Resource": r.Resource.GetRawProperties(),
+			}
+			tui.GetTable().PrintInfoBox(tableInfo, cols, true)
 		}
 	},
 }

@@ -12,6 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	ErrMissingRequiredField = fmt.Errorf("resource missing required field")
+)
+
 type CCResourceDescriber interface {
 	IsDescribed() bool
 	IsShallowDescribe() bool
@@ -103,6 +107,7 @@ type CloudControlAPI interface {
 	ListResources(resource *CCResourceProperty, additionalFields map[string]string) (*CCResourcesList, error)
 	GetResource(resource *CCResourceProperty, identifier string) (CCResourceDescriber, error)
 	ListSupportedResourceTypes() []*CCResourceProperty
+	GetResourceTypesSchemas() map[string]ResourceSchema
 }
 
 type CloudControlClient struct {
@@ -133,6 +138,10 @@ func NewCloudControlAPIWithDynamicResources(c *cloudcontrol.Client, cf *cloudfor
 		c:         c,
 		Resources: resources,
 	}
+}
+
+func (cc *CloudControlClient) GetResourceTypesSchemas() map[string]ResourceSchema {
+	return cc.Schemas
 }
 
 func (cc *CloudControlClient) client() *cloudcontrol.Client {
@@ -168,7 +177,7 @@ func (cc *CloudControlClient) createResourceModelInput(resource *CCResourcePrope
 	for _, f := range s.AdditionalRequiredFields {
 		fieldVal, ok := additonalFields[f]
 		if !ok {
-			return nil, fmt.Errorf("resource '%s' missing required field `%s`", resource.String(), f)
+			return nil, fmt.Errorf("resource '%s' missing required field `%s`: %w", resource.String(), f, ErrMissingRequiredField)
 		}
 		result[f] = fieldVal
 	}
@@ -184,7 +193,7 @@ func (cc *CloudControlClient) createResourceModelInput(resource *CCResourcePrope
 func (cc *CloudControlClient) ListResources(resource *CCResourceProperty, additonalFields map[string]string) (*CCResourcesList, error) {
 	resourceModel, err := cc.createResourceModelInput(resource, additonalFields)
 	if err != nil {
-		return nil, fmt.Errorf("additional fields: %w", err)
+		return nil, err
 	}
 	input := &cloudcontrol.ListResourcesInput{
 		TypeName:      aws.String(resource.String()),
