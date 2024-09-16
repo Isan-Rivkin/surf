@@ -34,3 +34,5 @@ ignore
 */.terraform.tfstate
 */.terraform.tfstate.backup
 */.terraformrc
+ignore.DS_Store
+lib/.DS_Store
