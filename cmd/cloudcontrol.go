@@ -152,7 +152,7 @@ var cloudcontrolCmdSearch = &cobra.Command{
 	Use:   "search",
 	Short: "Search existing cloud resources",
 	Long: `Search Existing AWS resources supported
-surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-cloud'
+surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=my-cluster'
 	`,
 	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {

@@ -76,10 +76,38 @@ The Supported resource types are auto generated into the code during every build
 
 **List Supported resource types**
 
+Note: certain resources require additional fields to be specified, such as `AWS::EKS::Addon`
+And list-types will show the required fields (e.g `ClusterName`).
+
 ```bash
-surf aws types
+surf aws list-types
 ```
 
+**List Resources**
+
+Example: List all EKS clusters: 
+
+```bash
+surf aws list --type eks::cluster
+```
+
+**Search existing resources**
+
+```bash
+surf aws search  -q <query>  -t [<resource-type>] -a [<field-key>=<field-val>]
+```
+
+Example search: resources containing the `my-app` *anywhere* and are of types `eks` or `vpc`:
+
+```bash
+surf aws search -q my-app -t eks -t vpc -a `ClusterName=MyClusterName`
+```
+
+Example Describe EKS cluster `my-cluster`:
+
+```bash
+surf aws get --type eks::cluster --id my-cluster
+```
 
 ## AWS ACM Usage 
 
