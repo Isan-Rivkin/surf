@@ -31,6 +31,6 @@ func NewApp() *App {
 func (a *App) Init() error {
 	// create context box
 	contextTable := tview.NewTable().SetBorders(false)
-	contextTable.SetCell(0, 0, tview.NewTableCell("Profile")).SetTextColor(tcell.ColorGreen)
+	contextTable.SetCell(0, 0, tview.NewTableCell("Profile").SetTextColor(tcell.ColorOrange).SetAlign(tview.AlignCenter))
 	return nil
 }
