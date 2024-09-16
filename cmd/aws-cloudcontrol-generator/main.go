@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/format"
 	"io/ioutil"
@@ -30,6 +31,12 @@ type generatedCCResourceProperty struct {
 	DataTypeName             string
 	ResourceProvisioningType string
 }
+// Define the main struct
+type resourceSchema struct {
+	TypeIdentifier           string
+	RawSchemaJson            string
+	AdditionalRequiredFields []string
+}
 
 var GenCloudformationProperties = []generatedCCResourceProperty{ 
 	{{ range $i, $r := .resources -}}
@@ -40,7 +47,20 @@ var GenCloudformationProperties = []generatedCCResourceProperty{
 		ResourceProvisioningType: "{{ $r.ResourceProvisioningType }}",
 	},
 	{{ end -}}
-}`
+}
+
+var GenCloudFormationResourceSchemas = map[string]resourceSchema{
+	{{- range $i, $r := .descriptions }}
+	"{{ $r.TypeIdentifier }}": {
+		AdditionalRequiredFields: []string{
+			{{- range $field := $r.AdditionalRequiredFields }}
+			"{{ $field }}",
+			{{- end }}
+		},
+	},
+	{{- end }}
+}
+`
 )
 
 func createFile(args map[string]interface{}) {
@@ -69,7 +89,11 @@ func main() {
 		panic(fmt.Errorf("creating session in AWS: %w", err))
 	}
 	cfClient, err := awsu.NewCloudFormation(auth)
-	resp, err := awsu.NewCloudFormationAPI(cfClient).GetAllSupportedCloudControlAPIResources()
+	if err != nil {
+		panic(fmt.Errorf("creating cloudformation client: %w", err))
+	}
+	cfApi := awsu.NewCloudFormationAPI(cfClient)
+	resp, err := cfApi.GetAllSupportedCloudControlAPIResources()
 	if err != nil {
 		panic(fmt.Errorf("getting all supported cloud control api resources: %w", err))
 	}
@@ -77,10 +101,37 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("parsing resources: %w", err))
 	}
+	// create channel in the size of resources
+	descriptions := make([]*awsu.ResourceSchema, 0, len(resources))
+	for _, r := range resources {
+		retryAttempts := 5
+		for i := 0; i < retryAttempts; i++ {
+			desc, err := cfApi.DescribeResourceType(r)
+			if err != nil {
+				if errors.Is(err, awsu.ErrCloudFormationRateLimit) {
+					// retry
+					time.Sleep(1 * time.Second)
+					fmt.Printf("retrying rate limit %d/%d '%s'\n", i, retryAttempts, r.String())
+					continue
+				} else {
+					panic(fmt.Errorf("describing resource type: %w", err))
+				}
+			}
+			resourceSchema, err := awsu.NewResourceSchemaFromDescribe(r, desc)
+			if err != nil {
+				panic(fmt.Errorf("creating resource schema from describe: %w", err))
+			}
+			fmt.Printf("Described Resource: %s Props %s\n", resourceSchema.AdditionalRequiredFields, r.String())
+			descriptions = append(descriptions, resourceSchema)
+			break
+		}
+	}
 
+	fmt.Println("done descriptions: ", len(descriptions))
 	args := map[string]interface{}{
-		"resources": resources,
-		"now":       time.Now().Format("2006-01-02 15:04:05"),
+		"resources":    resources,
+		"descriptions": descriptions,
+		"now":          time.Now().Format("2006-01-02 15:04:05"),
 	}
 
 	createFile(args)

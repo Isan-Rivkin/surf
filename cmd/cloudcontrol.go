@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/isan-rivkin/surf/lib/awsu"
@@ -25,24 +26,29 @@ var cloudcontrolCmd = &cobra.Command{
 	Long:  ``,
 }
 
-func fuzzyMatchResourceTypes(input string, resourceTypes []*awsu.CCResourceProperty) (*awsu.CCResourceProperty, error) {
-	var match *awsu.CCResourceProperty
-	var maxScore awsu.AutoCompleteMatchScore
+type matchedResourceTypeResult struct {
+	Resource *awsu.CCResourceProperty
+	Score    awsu.AutoCompleteMatchScore
+}
 
+func fuzzyMatchResourceTypes(input string, resourceTypes []*awsu.CCResourceProperty) ([]*matchedResourceTypeResult, error) {
+	// var match *awsu.CCResourceProperty
+	// var maxScore awsu.AutoCompleteMatchScore
+	var matches []*matchedResourceTypeResult
 	for _, rt := range resourceTypes {
 		score := rt.CheckMatch(strings.ToLower(input))
-		if score == awsu.ExactMatch {
-			return rt, nil
-		}
-		if score > maxScore {
-			maxScore = score
-			match = rt
+		if score > 0 {
+			matches = append(matches, &matchedResourceTypeResult{Resource: rt, Score: score})
 		}
 	}
-	if match == nil {
+	// sort matches based on max scope to min
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].Score > matches[j].Score
+	})
+	if len(matches) == 0 {
 		return nil, fmt.Errorf("no match resource type")
 	}
-	return match, nil
+	return matches, nil
 }
 
 func setupCommonCloudInitAWSFlags(cmd *cobra.Command) {
@@ -65,7 +71,7 @@ func init() {
 	// init list sub command
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdList)
 	setupCommonCloudInitFlags(cloudcontrolCmdList)
-
+	cloudcontrolCmdList.Flags().StringArrayP("additional", "a", []string{}, "set additional required fields for search (usage: -p 'ClusterName=my-cluster' -p 'Field2=Value2')")
 	// init get sub command
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdGet)
 	setupCommonCloudInitFlags(cloudcontrolCmdGet)
@@ -75,16 +81,77 @@ func init() {
 	cloudcontrolCmd.AddCommand(cloudcontrolCmdSearch)
 	cloudcontrolCmdSearch.Flags().StringP("query", "q", "", "search query (usage: --query 'my-vpc')")
 	cloudcontrolCmdSearch.Flags().StringArrayP("type", "t", []string{}, "search resource types (usage: -t vpc -t 'ec2')")
+	cloudcontrolCmdSearch.Flags().StringArrayP("additional", "a", []string{}, "set additional required fields for search (usage: -p 'ClusterName=my-cluster' -p 'Field2=Value2')")
 	setupCommonCloudInitAWSFlags(cloudcontrolCmdSearch)
+}
+
+func searchResourceInstance(api awsu.CloudControlAPI, query string, resourceType *awsu.CCResourceProperty, additionalFields map[string]string) ([]awsu.CCResourceDescriber, error) {
+	var results []awsu.CCResourceDescriber
+	resourceList, err := api.ListResources(resourceType, additionalFields)
+	if err != nil {
+		return nil, fmt.Errorf("listing resource %s: %w", resourceType.String(), err)
+	}
+	for _, r := range resourceList.Resources {
+		id, err := r.GetIdentifier()
+		if err != nil {
+			return nil, fmt.Errorf("parsing identifier %s: %w", resourceType.String(), err)
+		}
+		// check if q (regex) match id or name
+		rid, err := r.GetIdentifier()
+		if err != nil {
+			return nil, fmt.Errorf("getting resource identifier %s: %w", resourceType.String(), err)
+		}
+
+		// try describe and match properties
+		describedResource, err := api.GetResource(resourceType, rid)
+
+		if err != nil {
+			return nil, fmt.Errorf("getting resource %s: %w", rid, err)
+		}
+
+		obj, err := accessor.NewJsonContainerFromBytes([]byte(describedResource.GetRawProperties()))
+		if err != nil {
+			return nil, fmt.Errorf("parsing properties: %w", err)
+		}
+		flat, err := obj.Flatten()
+		if err != nil {
+			return nil, fmt.Errorf("flattening properties: %w", err)
+		}
+
+		for _, v := range flat {
+			if strVal, ok := v.(string); ok {
+				matched, err := regexp.MatchString(query, strVal)
+				if err != nil {
+					return nil, fmt.Errorf("matching regex %s: %w", query, err)
+				}
+				if matched {
+					log.WithFields(log.Fields{"id": id, "properties": obj.String()}).Debug("found resource")
+					results = append(results, describedResource)
+					break
+				}
+			}
+		}
+	}
+	return results, nil
+}
+
+type awsResourceSearchResult struct {
+	Auth         *awsu.AuthInput
+	ResourceType *awsu.CCResourceProperty
+	Resource     awsu.CCResourceDescriber
 }
 
 // add sub command for search
 var cloudcontrolCmdSearch = &cobra.Command{
 	Use:   "search",
 	Short: "Search existing cloud resources",
-	Long:  `Search Existing AWS resources supported`,
-	Args:  cobra.NoArgs,
+	Long: `Search Existing AWS resources supported
+surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=lakefs-cloud'
+	`,
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		tui := buildTUI()
+		defer tui.GetLoader().Stop()
 		q, err := cmd.Flags().GetString("query")
 		if err != nil {
 			log.WithError(err).Fatalf("failed getting query")
@@ -99,8 +166,17 @@ var cloudcontrolCmdSearch = &cobra.Command{
 		if len(inputTypes) == 0 {
 			log.Fatalf("must specify a resource types --type (see --help)")
 		}
-		for _, i := range inputTypes {
-			fmt.Println("searching for resource type", i)
+		additionalFields, err := cmd.Flags().GetStringArray("additional")
+		if err != nil {
+			log.WithError(err).Fatalf("failed getting additional fields")
+		}
+		additionalFieldsMap := map[string]string{}
+		for _, f := range additionalFields {
+			parts := strings.Split(f, "=")
+			if len(parts) != 2 {
+				log.Fatalf("invalid additional field %s, must be in format 'key=value'", f)
+			}
+			additionalFieldsMap[parts[0]] = parts[1]
 		}
 		sessInputs, err := resolveAWSSessions(cloudcontrolCmdMultiAWSProfile, awsProfile, awsRegion)
 		if err != nil {
@@ -111,81 +187,51 @@ var cloudcontrolCmdSearch = &cobra.Command{
 		if err != nil {
 			log.WithError(err).Fatalf("failed creating session in AWS")
 		}
-
+		var allResults []*awsResourceSearchResult
 		for _, auth := range auths {
 			ccClient, err := awsu.NewCloudControl(auth)
 
 			if err != nil {
+				tui.GetLoader().Stop()
 				log.WithError(err).Fatalf("failed creating cloudcontrol client")
 			}
 
 			api := awsu.NewCloudControlAPI(ccClient)
 			for _, inputType := range inputTypes {
-				resourceType, err := fuzzyMatchResourceTypes(inputType, api.ListSupportedResourceTypes())
+				tui.GetLoader().Stop()
+				matchedTypes, err := fuzzyMatchResourceTypes(inputType, api.ListSupportedResourceTypes())
 				if err != nil {
 					log.WithError(err).Warnf("failed matching '%s' resource, skipping", inputType)
 					continue
 				}
-
-				fmt.Printf("searching for resource '%s' q='%s'\n", resourceType.String(), q)
-
-				resourceList, err := api.ListResources(resourceType)
-				if err != nil {
-					log.WithError(err).Fatalf("failed listing resource %s", inputType)
-				}
-				for _, r := range resourceList.Resources {
-					id, err := r.GetIdentifier()
-					if err != nil {
-						panic(fmt.Errorf("failed parsing identifier %s", err))
-					}
-					// check if q (regex) match id or name
-					rid, err := r.GetIdentifier()
-					if err != nil {
-						log.WithError(err).Fatalf("failed getting resource identifier")
-					}
-					matchedID, err := regexp.MatchString(q, rid)
-					if err != nil {
-						log.WithError(err).Fatalf("failed matching regex %s", q)
-					}
-					if matchedID {
-						fmt.Printf("ID: %s\nProperties: %s\n", id, r.GetRawProperties())
-						continue
-					}
-					// try describe and match properties
-					result, err := api.GetResource(resourceType, rid)
-
-					if err != nil {
-						log.WithError(err).Fatalf("failed getting resource %s", rid)
-					}
-
-					// fmt.Printf("NO MATCH: %s\nProperties: %s\n", id, result.GetRawProperties())
-					// convert result.GetRawProperties() into map[any]any and iterate each key nested
-					// if any key value matches q then print
-
-					obj, err := accessor.NewJsonContainerFromBytes([]byte(result.GetRawProperties()))
-					if err != nil {
-						log.WithError(err).Fatalf("failed parsing properties")
-					}
-					flat, err := obj.Flatten()
-					if err != nil {
-						log.WithError(err).Fatalf("failed flattening properties")
-					}
-
-					for _, v := range flat {
-						if strVal, ok := v.(string); ok {
-							matchedID, err := regexp.MatchString(q, strVal)
-							if err != nil {
-								log.WithError(err).Fatalf("failed matching regex %s", q)
-							}
-							if matchedID {
-								fmt.Printf("ID: %s\nProperties: %s\n", id, obj.String())
-								break
-							}
+				for _, matchedType := range matchedTypes {
+					tui.GetLoader().Stop()
+					if matchedType.Score >= awsu.ServiceMatch {
+						tui.GetLoader().Start(fmt.Sprintf("searching in '%s' q='%s'", matchedType.Resource.String(), q), "", "green")
+						results, err := searchResourceInstance(api, q, matchedType.Resource, additionalFieldsMap)
+						if err != nil {
+							tui.GetLoader().Stop()
+							log.WithError(err).Fatalf("failed searching in '%s' q='%s'", matchedType.Resource.String(), q)
+						}
+						for _, r := range results {
+							allResults = append(allResults, &awsResourceSearchResult{Auth: auth, ResourceType: matchedType.Resource, Resource: r})
 						}
 					}
 				}
+				tui.GetLoader().Stop()
 			}
-
+			tui.GetLoader().Stop()
+			cols := []string{"Account", "Type", "ID", "Resource"}
+			for _, r := range allResults {
+				rid, _ := r.Resource.GetIdentifier()
+				info := map[string]string{
+					"Account":  r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
+					"Type":     r.ResourceType.String(),
+					"ID":       rid,
+					"Resource": r.Resource.GetRawProperties(),
+				}
+				tui.GetTable().PrintInfoBox(info, cols, true)
+			}
 		}
 	},
 }
@@ -226,10 +272,11 @@ var cloudcontrolCmdGet = &cobra.Command{
 				log.Fatalf("must specify a resource identifier --id")
 			}
 
-			resourceType, err := fuzzyMatchResourceTypes(inputType, api.ListSupportedResourceTypes())
+			resourceTypes, err := fuzzyMatchResourceTypes(inputType, api.ListSupportedResourceTypes())
 			if err != nil {
 				log.WithError(err).Fatalf("failed matching resources")
 			}
+			resourceType := resourceTypes[0].Resource
 			result, err := api.GetResource(resourceType, rID)
 
 			if err != nil {
@@ -261,6 +308,18 @@ var cloudcontrolCmdList = &cobra.Command{
 	Long:  `List Existing AWS resources supported`,
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		additionalFields, err := cmd.Flags().GetStringArray("additional")
+		if err != nil {
+			log.WithError(err).Fatalf("failed getting additional fields")
+		}
+		additionalFieldsMap := map[string]string{}
+		for _, f := range additionalFields {
+			parts := strings.Split(f, "=")
+			if len(parts) != 2 {
+				log.Fatalf("invalid additional field %s, must be in format 'key=value'", f)
+			}
+			additionalFieldsMap[parts[0]] = parts[1]
+		}
 		sessInputs, err := resolveAWSSessions(cloudcontrolCmdMultiAWSProfile, awsProfile, awsRegion)
 		if err != nil {
 			log.WithError(err).Fatalf("failed building input for AWS session")
@@ -285,19 +344,20 @@ var cloudcontrolCmdList = &cobra.Command{
 				log.Fatalf("must specify a resource type --type (usage: --type AWS::DynamoDB::Table --type AWS::EC2::VPC, see --help)")
 			}
 
-			resourceType, err := fuzzyMatchResourceTypes(inputType, api.ListSupportedResourceTypes())
+			resourceTypes, err := fuzzyMatchResourceTypes(inputType, api.ListSupportedResourceTypes())
 			if err != nil {
 				log.WithError(err).Fatalf("failed matching resources")
 			}
+			resourceType := resourceTypes[0].Resource
 			fmt.Printf("listing matched resource %s\n", resourceType.String())
-			resourceList, err := api.ListResources(resourceType)
+			resourceList, err := api.ListResources(resourceType, additionalFieldsMap)
 			if err != nil {
 				log.WithError(err).Fatalf("failed listing resource %s", inputType)
 			}
 			for _, r := range resourceList.Resources {
 				id, err := r.GetIdentifier()
 				if err != nil {
-					panic(fmt.Errorf("failed parsing identifier %s", err))
+					panic(fmt.Errorf("parsing identifier %s", err))
 				}
 				fmt.Printf("ID: %s\nProperties: %s\n", id, r.GetRawProperties())
 			}

@@ -2,6 +2,7 @@ package awsu
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudcontrol"
@@ -99,7 +100,7 @@ func (cc *CCResourceWrapper) GetRawProperties() string {
 }
 
 type CloudControlAPI interface {
-	ListResources(resource *CCResourceProperty) (*CCResourcesList, error)
+	ListResources(resource *CCResourceProperty, additionalFields map[string]string) (*CCResourcesList, error)
 	GetResource(resource *CCResourceProperty, identifier string) (CCResourceDescriber, error)
 	ListSupportedResourceTypes() []*CCResourceProperty
 }
@@ -107,12 +108,14 @@ type CloudControlAPI interface {
 type CloudControlClient struct {
 	c         *cloudcontrol.Client
 	Resources []*CCResourceProperty
+	Schemas   map[string]ResourceSchema
 }
 
 func NewCloudControlAPI(c *cloudcontrol.Client) CloudControlAPI {
 	return &CloudControlClient{
 		c:         c,
 		Resources: NewCloudControlResourcesFromGeneratedCode(),
+		Schemas:   NewResourceSchemaFromGeneratedCode(),
 	}
 }
 
@@ -131,14 +134,6 @@ func NewCloudControlAPIWithDynamicResources(c *cloudcontrol.Client, cf *cloudfor
 		Resources: resources,
 	}
 }
-
-// TODO: remove this and usage of NewCCResources
-// func NewCloudControlAPI(c *cloudcontrol.Client) CloudControlAPI {
-// 	return &CloudControlClient{
-// 		c:         c,
-// 		Resources: NewCCResources(),
-// 	}
-// }
 
 func (cc *CloudControlClient) client() *cloudcontrol.Client {
 	return cc.c
@@ -160,16 +155,46 @@ func (cc *CloudControlClient) GetResource(resource *CCResourceProperty, identifi
 	return NewResourceFromGetOutput(resp, resource), nil
 }
 
+func (cc *CloudControlClient) createResourceModelInput(resource *CCResourceProperty, additonalFields map[string]string) (*string, error) {
+	result := map[string]string{}
+	s, ok := cc.Schemas[resource.String()]
+	if !ok {
+		return nil, fmt.Errorf("resource not found `%s`", resource.String())
+	}
+	// no additional required fields
+	if len(s.AdditionalRequiredFields) == 0 {
+		return nil, nil
+	}
+	for _, f := range s.AdditionalRequiredFields {
+		fieldVal, ok := additonalFields[f]
+		if !ok {
+			return nil, fmt.Errorf("resource '%s' missing required field `%s`", resource.String(), f)
+		}
+		result[f] = fieldVal
+	}
+	// convert result to json
+	jsonStr, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return aws.String(string(jsonStr)), nil
+}
+
 // TODO: make this function really return the type not nils
-func (cc *CloudControlClient) ListResources(resource *CCResourceProperty) (*CCResourcesList, error) {
+func (cc *CloudControlClient) ListResources(resource *CCResourceProperty, additonalFields map[string]string) (*CCResourcesList, error) {
+	resourceModel, err := cc.createResourceModelInput(resource, additonalFields)
+	if err != nil {
+		return nil, fmt.Errorf("additional fields: %w", err)
+	}
 	input := &cloudcontrol.ListResourcesInput{
-		TypeName: aws.String(resource.String()),
+		TypeName:      aws.String(resource.String()),
+		ResourceModel: resourceModel,
 	}
 	var result []CCResourceDescriber
 	for {
 		resp, err := cc.client().ListResources(context.Background(), input)
 		if err != nil {
-			return nil, fmt.Errorf("listing resources: %w", err)
+			return nil, fmt.Errorf("aws listing resources: %w", err)
 		}
 		result = append(result, NewResourceFromListOutput(resp, resource)...)
 		for _, r := range resp.ResourceDescriptions {
