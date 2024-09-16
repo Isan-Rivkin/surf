@@ -26,4 +26,5 @@ consul_input.yaml
 # Go workspace file
 go.work
 
-ignore
+ignore.DS_Store
+lib/.DS_Store
