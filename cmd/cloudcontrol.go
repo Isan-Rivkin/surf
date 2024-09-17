@@ -258,11 +258,15 @@ surf aws search  -q 'my-prod'  -t vpc -t eks::cluster -a 'ClusterName=my-cluster
 			}
 			for _, r := range allResults {
 				rid, _ := r.Resource.GetIdentifier()
+				resourceObj, err := accessor.NewJsonContainerFromBytes([]byte(r.Resource.GetRawProperties()))
+				if err != nil {
+					log.WithError(err).Fatalf("failed parsing resource properties")
+				}
 				jsonOutput["matches"] = append(jsonOutput["matches"].([]map[string]any), map[string]any{
 					"account":  r.Auth.EffectiveProfile + "-" + r.Auth.EffectiveRegion,
 					"type":     r.ResourceType.String(),
 					"id":       rid,
-					"resource": r.Resource.GetRawProperties(),
+					"resource": resourceObj,
 				})
 			}
 			for _, e := range allErrs {
