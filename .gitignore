@@ -26,5 +26,13 @@ consul_input.yaml
 # Go workspace file
 go.work
 
+ignore
+*/.DS_Store
+*/.idea
+*/.terraform
+*/.terraform.lock.hcl
+*/.terraform.tfstate
+*/.terraform.tfstate.backup
+*/.terraformrc
 ignore.DS_Store
 lib/.DS_Store
