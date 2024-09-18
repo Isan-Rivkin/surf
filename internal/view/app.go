@@ -1,6 +1,11 @@
 package view
 
 import (
+	"fmt"
+	"math/rand"
+	"strings"
+	"time"
+
 	"github.com/common-nighthawk/go-figure"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -32,11 +37,90 @@ func NewApp(name, version string) *App {
 		version: version,
 	}
 }
+func generateRandomDigits(n int) string {
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
+	digits := "0123456789"
+	result := make([]byte, n)
+
+	for i := range result {
+		result[i] = digits[rand.Intn(len(digits))] // Random digit
+	}
+
+	return string(result)
+}
+
+// Generate a random word with a random length
+func generateRandomWord(minLen, maxLen int) string {
+	letters := "abcdefghijklmnopqrstuvwxyz"
+	wordLength := rand.Intn(maxLen-minLen+1) + minLen
+	word := make([]byte, wordLength)
+
+	for i := range word {
+		word[i] = letters[rand.Intn(len(letters))]
+	}
+
+	return string(word)
+}
+
+// Generate a random sentence of length between minLen and maxLen characters
+func generateRandomSentence(minLen, maxLen int) string {
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
+	var sentence strings.Builder
+
+	// Choose a random sentence length between minLen and maxLen
+	sentenceLength := rand.Intn(maxLen-minLen+1) + minLen
+
+	// Keep generating words until we reach the desired length
+	for sentence.Len() < sentenceLength {
+		word := generateRandomWord(3, 8) // Random word between 3 and 8 characters
+
+		// Ensure we don't exceed the maximum length, accounting for spaces
+		if sentence.Len()+len(word)+1 > sentenceLength {
+			break
+		}
+
+		if sentence.Len() > 0 {
+			sentence.WriteString(" ") // Add a space between words
+		}
+		sentence.WriteString(word)
+	}
+
+	return sentence.String()
+}
 func mockSecurityGroupResourcesTable() *tview.Table {
-	cols := []string{"ID", "Name", "Version", "Region", "Profile"}
 	t := tview.NewTable()
 	t.SetBorders(false)
-
+	rowsSize := 200
+	cols := []string{"#", "ID", "Name", "Description", "Ingress Rules", "Egress Rules", "VpcId"}
+	rows := [][]string{
+		{"1", "sg-12345678987654322", "my-security-group", "Clusters Test Security group created in Python", "4", "1", "vpc-12345678987654321"},
+	}
+	for i := 0; i < rowsSize; i++ {
+		idx := fmt.Sprintf("%d", i+2)
+		id := fmt.Sprintf("sg-%s", generateRandomDigits(17))
+		vpc := fmt.Sprintf("vpc-%s", generateRandomDigits(17))
+		name := generateRandomWord(5, 20)
+		description := generateRandomSentence(0, 100)
+		egressRules := fmt.Sprintf("%d", rand.Intn(10))
+		ingressRules := fmt.Sprintf("%d", rand.Intn(10))
+		rows = append(rows, []string{idx, id, name, description, ingressRules, egressRules, vpc})
+	}
+	// update columns
+	for i := 0; i < len(cols); i++ {
+		t.SetCell(0, i, tview.NewTableCell(cols[i]).SetTextColor(tcell.ColorOrange).SetAlign(tview.AlignLeft))
+	}
+	// update rows
+	for i := 0; i < len(rows); i++ {
+		for j := 0; j < len(rows[i]); j++ {
+			t.SetCell(i+1, j, tview.NewTableCell(rows[i][j]).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
+		}
+	}
+	t.SetFixed(1, 1)
+	t.SetSelectable(true, false)
+	t.Select(1, 0)
+	t.SetSelectedFunc(func(row int, column int) {
+		t.GetCell(row, column).SetTextColor(tcell.ColorRed)
+	})
 	return t
 }
 func (a *App) Init() error {
@@ -80,7 +164,8 @@ func (a *App) Init() error {
 	prompt.SetText("> AWS::EC2::SecurityGroup ")
 
 	// add resource description (box placeholder)
-	resources := tview.NewBox().SetBorder(true).SetTitle(" Security Groups ")
+	sgTable := mockSecurityGroupResourcesTable()
+	resources := sgTable
 	// resources pane should be in pages and stack
 	resourcesPages := tview.NewPages()
 	resourcesPages.AddPage("resources", resources, true, true)
@@ -96,6 +181,7 @@ func (a *App) Init() error {
 	pages := tview.NewPages()
 	pages.AddPage("main", mainPage, true, true)
 	a.app.SetRoot(pages, true)
+	a.app.SetFocus(resources)
 	return nil
 }
 func (a *App) Run() error {
