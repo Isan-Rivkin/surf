@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"github.com/isan-rivkin/surf/internal/view"
+	"github.com/isan-rivkin/surf/lib/awsu"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,12 @@ var tuiCmd = &cobra.Command{
 	Short: "Experimental GUI",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		app := view.NewApp(AppName, AppVersion)
+		autocompleteTypes := []string{"profile"}
+		awsTypes := awsu.NewCloudControlAPI(nil).ListSupportedResourceTypes()
+		for _, rt := range awsTypes {
+			autocompleteTypes = append(autocompleteTypes, rt.String())
+		}
+		app := view.NewApp(AppName, AppVersion, autocompleteTypes)
 		if err := app.Init(); err != nil {
 			panic(err)
 		}
