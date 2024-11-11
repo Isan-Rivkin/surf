@@ -1,6 +1,6 @@
 module github.com/isan-rivkin/surf
 
-go 1.18
+go 1.22
 
 require (
 	github.com/Jeffail/gabs/v2 v2.6.1

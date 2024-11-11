@@ -26,13 +26,19 @@ func NewJsonContainerFromMap(rootKey string, data map[string]string) (*gabs.Cont
 }
 
 func NewJsonContainerFromInterface(rootKey string, data map[string]any) (*gabs.Container, error) {
-	if rootKey == "" {
-		return nil, fmt.Errorf("ErrRootKeyEmptyString")
-	}
+	//TODO: verify? remove this no need to force a root key really
+	// if rootKey == "" {
+	// 	return nil, fmt.Errorf("ErrRootKeyEmptyString")
+	// }
 	var buf bytes.Buffer
 
-	payload := map[string]any{
-		rootKey: data,
+	var payload map[string]any
+	if rootKey == "" {
+		payload = data
+	} else {
+		payload = map[string]any{
+			rootKey: data,
+		}
 	}
 
 	if err := json.NewEncoder(&buf).Encode(payload); err != nil {

@@ -3,12 +3,14 @@ package view
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/common-nighthawk/go-figure"
 	"github.com/gdamore/tcell/v2"
 	"github.com/isan-rivkin/surf/internal/ui"
+	"github.com/isan-rivkin/surf/lib/common/jsonutil"
 	"github.com/rivo/tview"
 )
 
@@ -25,11 +27,19 @@ import (
 ------------------------
 */
 
+const (
+	resourcesMainPageName            = "resources"
+	resourcesFilterdPage             = "resources-filtered"
+	resourceDescribeJsonPage         = "resource-json"
+	resourceDescribeFilteredJsonPage = "resource-json-filtered"
+)
+
 type App struct {
 	app               *tview.Application
 	name              string
 	version           string
 	autocompleteTypes []string
+	resourcesPages    *tview.Pages
 }
 
 func NewApp(name, version string, autocompleteTypes []string) *App {
@@ -90,29 +100,48 @@ func generateRandomSentence(minLen, maxLen int) string {
 
 	return sentence.String()
 }
-func mockSecurityGroupResourcesTable() *tview.Table {
+
+func autoCompleteInTableSearch(t *tview.Table, colIndexes []int, promptTxt string) *tview.Table {
+	rowMatchesSearch := func(rowIdx int, colIndexes []int, txt string) bool {
+		for _, j := range colIndexes {
+			cell := t.GetCell(rowIdx, j)
+			if strings.Contains(strings.ToLower(cell.Text), strings.ToLower(txt)) {
+				return true
+			}
+		}
+		return false
+	}
+	getRowSlice := func(rowIdx int) []string {
+		row := []string{}
+		for j := 0; j < t.GetColumnCount(); j++ {
+			cell := t.GetCell(rowIdx, j)
+			row = append(row, cell.Text)
+		}
+		return row
+	}
+	matchingRows := [][]string{}
+	// search in table
+	// TODO does this includes the column headers? t.GetRowCount()
+	for i := 0; i < t.GetRowCount(); i++ {
+		// if search matched or first row then its headers, always add
+		if rowMatchesSearch(i, colIndexes, promptTxt) || i == 0 {
+			matchingRows = append(matchingRows, getRowSlice(i))
+		}
+	}
+	// construct a new table
+	return newTableFromData(matchingRows)
+}
+func newTableFromData(data [][]string) *tview.Table {
 	t := tview.NewTable()
 	t.SetBorders(false)
-	rowsSize := 200
-	cols := []string{"#", "ID", "Name", "Description", "Ingress Rules", "Egress Rules", "VpcId"}
-	rows := [][]string{
-		{"1", "sg-12345678987654322", "my-security-group", "Clusters Test Security group created in Python", "4", "1", "vpc-12345678987654321"},
-	}
-	for i := 0; i < rowsSize; i++ {
-		idx := fmt.Sprintf("%d", i+2)
-		id := fmt.Sprintf("sg-%s", generateRandomDigits(17))
-		vpc := fmt.Sprintf("vpc-%s", generateRandomDigits(17))
-		name := generateRandomWord(5, 20)
-		description := generateRandomSentence(0, 100)
-		egressRules := fmt.Sprintf("%d", rand.Intn(10))
-		ingressRules := fmt.Sprintf("%d", rand.Intn(10))
-		rows = append(rows, []string{idx, id, name, description, ingressRules, egressRules, vpc})
-	}
-	// update columns
+
+	// update columns header
+	cols := data[0]
 	for i := 0; i < len(cols); i++ {
 		t.SetCell(0, i, tview.NewTableCell(cols[i]).SetTextColor(tcell.ColorOrange).SetAlign(tview.AlignLeft))
 	}
 	// update rows
+	rows := data[1:]
 	for i := 0; i < len(rows); i++ {
 		for j := 0; j < len(rows[i]); j++ {
 			t.SetCell(i+1, j, tview.NewTableCell(rows[i][j]).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignLeft))
@@ -125,6 +154,36 @@ func mockSecurityGroupResourcesTable() *tview.Table {
 		t.GetCell(row, column).SetTextColor(tcell.ColorRed)
 	})
 	return t
+}
+
+func mockSecurityGroupResourcesDescribeAsTextView() *tview.TextView {
+	obj, _ := jsonutil.NewJsonContainerFromInterface("", sg1Mock)
+	textView := tview.NewTextView().SetDynamicColors(true)
+	textView.SetText(obj.StringIndent("", "  "))
+	return textView
+}
+func mockSecurityGroupResourcesTable() (*tview.Table, []int) {
+	autoCompleteCorpus := []string{}
+	rowsSize := 200
+	cols := []string{"#", "ID", "Name", "Description", "Ingress Rules", "Egress Rules", "VpcId"}
+	rows := [][]string{
+		cols,
+		{"1", "sg-12345678987654322", "my-security-group", "Clusters Test Security group created in Python", "4", "1", "vpc-12345678987654321"},
+	}
+	autoCompleteCorpus = append(autoCompleteCorpus, rows[0][1], rows[0][2], rows[0][3])
+	for i := 0; i < rowsSize; i++ {
+		idx := fmt.Sprintf("%d", i+2)
+		id := fmt.Sprintf("sg-%s", generateRandomDigits(17))
+		vpc := fmt.Sprintf("vpc-%s", generateRandomDigits(17))
+		name := generateRandomWord(5, 20)
+		description := generateRandomSentence(0, 100)
+		egressRules := fmt.Sprintf("%d", rand.Intn(10))
+		ingressRules := fmt.Sprintf("%d", rand.Intn(10))
+		rows = append(rows, []string{idx, id, name, description, ingressRules, egressRules, vpc})
+		autoCompleteCorpus = append(autoCompleteCorpus, id, name, description)
+	}
+	t := newTableFromData(rows)
+	return t, []int{1, 2, 3}
 }
 
 func (a *App) getPromptResourceTypes() []string {
@@ -162,96 +221,210 @@ func (a *App) Init() error {
 		SetDirection(tview.FlexRowCSS).
 		AddItem(contextTable, 0, 1, false).
 		AddItem(logo, 50, 1, false)
-
+	// create page
+	pages := tview.NewPages()
+	// serach prompt
+	prompt := tview.NewInputField()
 	// add prompt
-	prompt := tview.NewTextView()
-	prompt.SetWordWrap(true)
-	prompt.SetWrap(true)
-	prompt.SetDynamicColors(true)
-	prompt.SetBorder(true)
-	prompt.SetBorderPadding(0, 0, 1, 1)
-	prompt.SetTextColor(tcell.ColorPaleTurquoise)
-	prompt.SetText("💡> AWS::EC2::SecurityGroup ")
+	// input field can be implement sync and async https://github.com/rivo/tview/wiki/InputField
+	typesPromptLabel := "💡(T)> "
+	resourcesPromptLabel := "🐳 (R)> "
+	resourceDescribePromptLabel := "🔍 (D)> "
+	// add resource description (box placeholder)
+	sgTable, autoCompleteCols := mockSecurityGroupResourcesTable()
+	var resourceDescribeView *tview.TextView
+	resources := sgTable
+	resources.SetSelectedFunc(func(row, column int) {
+		//stoppped here creating resource, should apply to filtered resources as well this selection
+		resourceDescribeView = mockSecurityGroupResourcesDescribeAsTextView()
+		a.resourcesPages.AddAndSwitchToPage(resourceDescribeJsonPage, resourceDescribeView, true)
+		prompt.SetLabel(resourceDescribePromptLabel)
+		a.app.SetFocus(resourceDescribeView)
+	})
+	var filteredResources *tview.Table
+	// resources pane should be in pages and stack
+	a.resourcesPages = tview.NewPages()
+	a.resourcesPages.AddPage(resourcesMainPageName, resources, true, true)
 
-	// input field can be implement sync and async https://github.com/rivo/tview/wiki/resourcesPrompt
-	resourcesPrompt := tview.NewInputField().
-		SetLabel("💡> ").
+	prompt.SetLabel("🔵> ").
 		// SetFieldWidth(30).
 		SetDoneFunc(func(key tcell.Key) {
-			fmt.Println("autocomplete done")
+			switch key {
+			// used done enter pressed
+			case tcell.KeyEnter:
+				// in k9s enter shows the resources and if its / search then the matches in the resource pane are kept on the screen and focus is moved there (i.e search pods name /pod...)
+				currentPageResourcePange, _ := a.resourcesPages.GetFrontPage()
+				isFitlerResourcesPage := currentPageResourcePange == resourcesFilterdPage
+				isDescribeResourcePage := currentPageResourcePange == resourceDescribeJsonPage
+				if prompt.GetText() != "" && isFitlerResourcesPage {
+					a.app.SetFocus(filteredResources)
+				} else if prompt.GetText() != "" && isDescribeResourcePage {
+					a.app.SetFocus(resourceDescribeView)
+				}
+				prompt.SetText("")
+				return
+			case tcell.KeyEscape:
+				// clear prompt
+				prompt.SetText("")
+			}
+			a.app.SetFocus(resources)
 		})
-	resourcesPrompt.SetBorder(true)
-	resourcesPrompt.SetBorderPadding(0, 0, 1, 1)
-	resourcesPrompt.SetFieldBackgroundColor(tcell.ColorBlack)
+	prompt.SetBorder(true)
+	prompt.SetBorderPadding(0, 0, 1, 1)
+	prompt.SetFieldBackgroundColor(tcell.ColorBlack)
 	// the autocomplete box popup of options that opens up
-	resourcesPrompt.SetAutocompleteStyles(tcell.ColorBlack,
+	prompt.SetAutocompleteStyles(tcell.ColorBlack,
 		tcell.StyleDefault.Foreground(tcell.ColorPaleTurquoise),
 		tcell.StyleDefault.Foreground(tcell.ColorOrange),
 	)
-	resourcesPrompt.SetFieldTextColor(tcell.ColorPaleTurquoise)
-	resourcesPrompt.SetBackgroundColor(tcell.ColorBlack)
-	// resourcesPrompt.SetLabelColor(tcell.ColorGreen)
+	prompt.SetFieldTextColor(tcell.ColorPaleTurquoise)
+	prompt.SetBackgroundColor(tcell.ColorBlack)
+	// prompt.SetLabelColor(tcell.ColorGreen)
 
-	resourcesPrompt.SetAutocompleteFunc(func(currentText string) (entries []string) {
+	prompt.SetAutocompleteFunc(func(currentText string) (entries []string) {
+
 		if len(currentText) == 0 {
 			return
 		}
-		for _, resType := range a.getPromptResourceTypes() {
-			if strings.HasPrefix(strings.ToLower(resType), strings.ToLower(currentText)) {
-				entries = append(entries, resType)
+		// auto complete resource types ':'
+		if prompt.GetLabel() == typesPromptLabel {
+			for _, resType := range a.getPromptResourceTypes() {
+				if strings.Contains(strings.ToLower(resType), strings.ToLower(currentText)) {
+					entries = append(entries, resType)
+				}
+			}
+		} else if prompt.GetLabel() == resourcesPromptLabel { // searchinig for '/' in resources pane
+			// stopped here trying to work on resource search with /
+			// i made a function to autoCompleteInTableSearch() but i should not create new table instead modify existing table
+			// in here the autocomplete does not make sense, its should display the resources filtered instead in the pane like k9s and show less resources
+			if currentText != "" {
+
+				filteredResources = autoCompleteInTableSearch(resources, autoCompleteCols, currentText)
+				a.resourcesPages.AddPage(resourcesFilterdPage, filteredResources, true, true)
+				filteredResources.SetSelectedFunc(func(row, column int) {
+					//stoppped here creating resource, should apply to filtered resources as well this selection
+					resourceDescribeView = mockSecurityGroupResourcesDescribeAsTextView()
+					a.resourcesPages.AddAndSwitchToPage(resourceDescribeJsonPage, resourceDescribeView, true)
+					prompt.SetLabel(resourceDescribePromptLabel)
+					a.app.SetFocus(resourceDescribeView)
+				})
+			}
+
+		} else if prompt.GetLabel() == resourceDescribePromptLabel { // searchinig for '/' in entered decribed resource
+			currentPageResourcePangeName, viewInFocus := a.resourcesPages.GetFrontPage()
+			if currentPageResourcePangeName == resourceDescribeJsonPage && currentText != "" {
+				txtView := viewInFocus.(*tview.TextView)
+				txt := txtView.GetText(false)
+				txtView.Clear()
+				// iterate text words and highlight all text that matches the currentText
+				words := strings.Split(txt, " ")
+				numSelections := 0
+				for _, w := range words {
+					// color tags are json keys not matching against them
+					matchWord := strings.ReplaceAll(w, "[blue]", "")
+					matchWord = strings.ReplaceAll(matchWord, "[white]", "")
+					newWord := w
+					// if match add highlight to select
+					// https://github.com/rivo/tview/wiki/TextView
+					if strings.Contains(strings.ToLower(matchWord), strings.ToLower(currentText)) {
+						newWord = fmt.Sprintf(`["%d"]%s[""]`, numSelections, w)
+						numSelections++
+					}
+					fmt.Fprintf(txtView, "%s ", newWord)
+				}
+				stopped here trying to make highlight text serach in 3rd prompt based on / which is highlight in json   https://github.com/rivo/tview/wiki/TextView
+				this is quite broken
+				txtView.SetDoneFunc(func(key tcell.Key) {
+					currentSelection := txtView.GetHighlights()
+					if key == tcell.KeyEnter {
+						if len(currentSelection) > 0 {
+							txtView.Highlight()
+						} else {
+							txtView.Highlight("0").ScrollToHighlight()
+						}
+					} else if len(currentSelection) > 0 {
+						index, _ := strconv.Atoi(currentSelection[0])
+						if key == tcell.KeyTab {
+							index = (index + 1) % numSelections
+						} else if key == tcell.KeyBacktab {
+							index = (index - 1 + numSelections) % numSelections
+						} else {
+							return
+						}
+						txtView.Highlight(strconv.Itoa(index)).ScrollToHighlight()
+					}
+				})
+				a.resourcesPages.AddAndSwitchToPage(resourceDescribeFilteredJsonPage, txtView, true)
+				a.app.SetFocus(txtView)
+			} else {
+				panic("should not be here")
+			}
+			// in example its <= 1 but then it doesnt show partial with 1 match
+			if len(entries) < 1 {
+				entries = nil
 			}
 		}
-		// in example its <= 1 but then it doesnt show partial with 1 match
-		if len(entries) < 1 {
-			entries = nil
-		}
-		return
+		return entries
 	})
 
-	resourcesPrompt.SetAutocompletedFunc(func(text string, index, source int) bool {
+	prompt.SetAutocompletedFunc(func(text string, index, source int) bool {
 		if source != tview.AutocompletedNavigate {
 			// once user hits "enter" selects here we can do stuff with selection like search it
-			resourcesPrompt.SetText(text)
+			prompt.SetText(text)
 		}
 		closeAutocompleteDropDown := source == tview.AutocompletedEnter || source == tview.AutocompletedClick
 		return closeAutocompleteDropDown
 	})
 
-	// add resource description (box placeholder)
-	sgTable := mockSecurityGroupResourcesTable()
-	resources := sgTable
-	// resources pane should be in pages and stack
-	resourcesPages := tview.NewPages()
-	resourcesPages.AddPage("resources", resources, true, true)
-
 	// set layout using flexbox
+	footer := tview.NewBox().SetBorder(true).SetTitle("BreadCrumbs (3 rows)")
 	mainPage := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(flexHeader, 0, 1, false).
 		AddItem(prompt, 3, 1, false).
-		AddItem(resourcesPrompt, 3, 1, false).
-		AddItem(resourcesPages, 0, 5, false).
-		AddItem(tview.NewBox().SetBorder(true).SetTitle("BreadCrumbs (3 rows)"), 3, 1, false)
+		AddItem(a.resourcesPages, 0, 5, false).
+		AddItem(footer, 3, 1, false)
 
-	// create page
-	pages := tview.NewPages()
 	pages.AddPage("main", mainPage, true, true)
 	a.app.SetRoot(pages, true)
 	a.app.SetFocus(resources)
-
 	// add keybindings
 	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// tcell.KeyCtrlBackslash
 		switch event.Rune() {
+		// if ':' then focus on prompt
 		case ui.KeyColon:
-			// resourcesPrompt.SetText(fmt.Sprintf("COLON!: name='%s' rune='%v' key='%d'", event.Name(), event.Rune(), event.Key()))
-			a.app.SetFocus(resourcesPrompt)
+			// prompt.SetText(fmt.Sprintf("COLON!: name='%s' rune='%v' key='%d'", event.Name(), event.Rune(), event.Key()))
+			if !prompt.HasFocus() {
+				prompt.SetLabel(typesPromptLabel)
+				a.app.SetFocus(prompt)
+				return nil
+			}
+			return event
+		case ui.KeySlash:
+			// TODO update if `/` - used to serach then string in resources pane, now its just same prompt as resource types
+			if !prompt.HasFocus() {
+				// check if inside resources pane or described resource
+				currentPageResourcePangeName, _ := a.resourcesPages.GetFrontPage()
+				if currentPageResourcePangeName == resourceDescribeJsonPage {
+					prompt.SetLabel(resourceDescribePromptLabel)
+				} else {
+					prompt.SetLabel(resourcesPromptLabel)
+				}
+				a.app.SetFocus(prompt)
+				return nil
+			}
 			return event
 		default:
-			// resourcesPrompt.SetText(fmt.Sprintf("KEY: name='%s' rune='%v' key='%d'", event.Name(), event.Rune(), event.Key()))
+			footer.SetTitle(fmt.Sprintf("KEY: name='%s' rune='%v' key='%d'; (resource pages #%d)", event.Name(), event.Rune(), event.Key(), a.resourcesPages.GetPageCount()))
 		}
 		switch event.Key() {
 		case tcell.KeyEscape:
+			// back to resources pane esc from prompt and clean prompt
+			prompt.SetText("")
 			a.app.SetFocus(resources)
+			a.resourcesPages.GetPageCount()
+			a.resourcesPages.SendToFront(resourcesMainPageName)
+			a.resourcesPages.SwitchToPage(resourcesMainPageName)
 			// case tcell.KeyCtrlC:
 			// 	return nil
 		}
@@ -259,6 +432,7 @@ func (a *App) Init() error {
 	})
 	return nil
 }
+
 func (a *App) Run() error {
 	return a.app.Run()
 }
