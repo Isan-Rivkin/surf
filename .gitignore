@@ -1,3 +1,4 @@
+.vscode/*
 input.yaml
 tf_input.yaml
 vault_input.yaml

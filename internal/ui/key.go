@@ -206,3 +206,16 @@ func initShiftKeys() {
 	tcell.KeyNames[KeyShiftY] = "Shift-Y"
 	tcell.KeyNames[KeyShiftZ] = "Shift-Z"
 }
+
+
+// AsKey converts rune to keyboard key.,.
+func AsKey(evt *tcell.EventKey) tcell.Key {
+	if evt.Key() != tcell.KeyRune {
+		return evt.Key()
+	}
+	key := tcell.Key(evt.Rune())
+	if evt.Modifiers() == tcell.ModAlt {
+		key = tcell.Key(int16(evt.Rune()) * int16(evt.Modifiers()))
+	}
+	return key
+}

@@ -16,11 +16,11 @@ var sg1Mock = map[string]any{
 				"[blue]ToPort[white]":      -1,
 			},
 			map[string]any{
-				"[blue]CidrIpv6[white[blue]]": "::/0",
-				"[blue]Description[white]":    "Node all egress",
-				"[blue]FromPort[white]":       -1,
-				"[blue]IpProtocol[white]":     "-1",
-				"[blue]ToPort[white]":         -1,
+				"[blue]CidrIpv6[white]":    "::/0",
+				"[blue]Description[white]": "Node all egress",
+				"[blue]FromPort[white]":    -1,
+				"[blue]IpProtocol[white]":  "-1",
+				"[blue]ToPort[white]":      -1,
 			},
 		},
 		"[blue]SecurityGroupIngress[white]": []any{

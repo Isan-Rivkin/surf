@@ -15,21 +15,35 @@ var tuiCmd = &cobra.Command{
 	Short: "Experimental GUI",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		autocompleteTypes := []string{"profile"}
-		awsTypes := awsu.NewCloudControlAPI(nil).ListSupportedResourceTypes()
-		for _, rt := range awsTypes {
-			autocompleteTypes = append(autocompleteTypes, rt.String())
+		if ParseFlag(cmd.Flags().GetBool("mock-app")) {
+			runMock()
+			return
 		}
-		app := view.NewApp(AppName, AppVersion, autocompleteTypes)
+		app := view.NewAppController(AppVersion)
 		if err := app.Init(); err != nil {
-			panic(err)
+			die("failed initializing app: %v\n", err)
 		}
 		if err := app.Run(); err != nil {
-			panic(err)
+			die("failed running app: %v\n", err)
 		}
 	},
 }
 
+func runMock() {
+	autocompleteTypes := []string{"profile"}
+	awsTypes := awsu.NewCloudControlAPI(nil).ListSupportedResourceTypes()
+	for _, rt := range awsTypes {
+		autocompleteTypes = append(autocompleteTypes, rt.String())
+	}
+	app := view.NewAppMock(AppName, AppVersion, autocompleteTypes)
+	if err := app.Init(); err != nil {
+		panic(err)
+	}
+	if err := app.Run(); err != nil {
+		panic(err)
+	}
+}
 func init() {
 	rootCmd.AddCommand(tuiCmd)
+	tuiCmd.Flags().Bool("mock-app", false, "run the app in mock mode")
 }

@@ -305,3 +305,17 @@ func initConfig() {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 }
+
+func die(fstring string, args ...interface{}) {
+	if !strings.HasSuffix(fstring, "\n") {
+		fstring += "\n"
+	}
+	_, _ = os.Stderr.WriteString(fmt.Sprintf(fstring, args...))
+	os.Exit(1)
+}
+func ParseFlag[T any](v T, err error) T {
+	if err != nil {
+		die("could not parse command flags: %v\n", err)
+	}
+	return v
+}
